@@ -26,5 +26,15 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `BUILD_LOG.md` (Entry #04)
 - **Actions Executed**: Confirmed UTF-16 LE BOM on requirements.txt; moved ORM to models.py; regenerated requirements as UTF-8; ran pytest; committed and pushed to main.
 
+### [Prompt #03] - Financial guardrails state machine
+- **Timestamp**: 2026-08-29 / Phase 3
+- **Exact User Prompt**: "Hello! Read @AGENTS.md and @technical_design_doc.md first. Please create backend/guardrails.py to evaluate transaction safety rules independently of LLMs (amount cap > ₹5,000, max 2 retries, and opt-out registry check). Then create tests/test_guardrails.py covering all 4 guardrail test cases using pytest and an in-memory database. Run pytest in terminal to verify all tests pass. Log this prompt in @PROMPT_LOG.md and any issue in @BUILD_LOG.md. Finally, git commit with message 'feat: implement financial guardrails state machine and pytest suite' and push to main."
+- **Files Created / Modified**:
+  - `backend/guardrails.py` (opt-out, retry cap, amount threshold)
+  - `tests/test_guardrails.py` (4 in-memory SQLite cases)
+  - `PROMPT_LOG.md`
+  - `BUILD_LOG.md`
+- **Actions Executed**: Implemented deterministic `evaluate_guardrails()`. Pytest: 4 passed in `tests/test_guardrails.py`, 14 passed overall. Committed and pushed to main.
+
 ---
 *(Future prompts and file modifications will be appended automatically by Cursor Pro)*

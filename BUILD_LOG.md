@@ -34,5 +34,12 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 - **Fix / Action Taken**: Regenerated `requirements.txt` as UTF-8 via Python (no PowerShell redirect). Moved ORM models to `backend/models.py`; `database.py` now holds engine/session/`init_db()` and re-exports models.
 - **Guardrail Added**: Always write lockfiles with Python `open(..., encoding='utf-8')` on Windows.
 
+### [Entry #05] Phase 3 guardrails engine
+- **Status**: 🟢 RESOLVED
+- **Component**: Financial Guardrails
+- **What happened**: Implemented non-LLM safety state machine. No package or runtime errors.
+- **Fix / Action Taken**: `backend/guardrails.py` evaluates opt-out → retry cap (`>= 2`) → amount `> ₹5,000`. `tests/test_guardrails.py`: 4 passed. Full suite: 14 passed.
+- **Guardrail Added**: High-value payments never auto-dispatch (`requires_human_approval=true`, `FLAGGED_FOR_APPROVAL`).
+
 ---
 *(Future debugging entries will be appended automatically by coding agents during build cycles)*
