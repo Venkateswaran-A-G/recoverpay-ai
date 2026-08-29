@@ -5,7 +5,7 @@ from decimal import Decimal
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 
-from backend.database import AuditLog, Base, OptOutRegistry, Transaction
+from backend.models import AuditLog, Base, OptOutRegistry, Transaction
 
 
 def _memory_session():
@@ -13,6 +13,14 @@ def _memory_session():
     Base.metadata.create_all(bind=engine)
     Session = sessionmaker(bind=engine, future=True)
     return engine, Session()
+
+
+def test_orm_models_live_in_models_module():
+    import backend.models as models
+
+    assert models.Transaction.__tablename__ == "transactions"
+    assert models.AuditLog.__tablename__ == "audit_logs"
+    assert models.OptOutRegistry.__tablename__ == "opt_out_registry"
 
 
 def test_init_db_creates_expected_tables():

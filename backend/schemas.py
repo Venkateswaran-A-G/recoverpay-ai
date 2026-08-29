@@ -1,6 +1,6 @@
 """Pydantic v2 request / response schemas for RecoverPay AI.
 
-ORM models stay in ``backend/database.py``; this module is the typed API
+ORM models stay in ``backend/models.py``; this module is the typed API
 and LLM-output contract layer (ConfigDict(from_attributes=True)).
 """
 

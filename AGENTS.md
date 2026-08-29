@@ -6,6 +6,15 @@
 - **Database**: SQLite (`recoverpay.db`) for dev/demo; PostgreSQL ready
 - **AI & SDKs**: OpenAI GPT-4o-mini (structured JSON), Razorpay Python SDK (`razorpay`)
 
+## 🚨 MANDATORY PROMPT LOG & AUDIT RULE
+**FOR EVERY PROMPT YOU RECEIVE AND ACTION YOU EXECUTE, YOU MUST:**
+1. Append an entry to **`PROMPT_LOG.md`** containing:
+   - **Timestamp / Phase Number**
+   - **Exact User Prompt Received**
+   - **Files Created / Modified**
+   - **Summary of Actions Executed**
+2. Append any errors or bug fixes to **`BUILD_LOG.md`**.
+
 ## 🚨 MANDATORY GIT COMMIT & PUSH RULE
 **AFTER EVERY COMPLETED FEATURE, FIX, OR SMALL FILE EDIT, YOU MUST:**
 1. Check changed files using `git status` or `git diff`.
@@ -15,7 +24,7 @@
    - `test: <description>` for unit / integration tests
    - `docs: <description>` for documentation updates
    - `refactor: <description>` for code restructuring
-3. Automatically execute `git push origin <branch-name>` so every single edit is safely backed up to GitHub.
+3. Automatically execute `git push origin main` so every single edit is safely backed up to GitHub.
 
 ## Hard System Guardrails (NON-NEGOTIABLE)
 1. **Financial Threshold**: ANY transaction amount `> ₹5,000` MUST return `requires_human_approval: true` and set status to `FLAGGED_FOR_APPROVAL`. Never auto-dispatch high-value payments.

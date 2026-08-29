@@ -25,5 +25,14 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 - **Fix / Action Taken**: `init_db()` creates SQLite `recoverpay.db`. Added `python-dotenv` so `DATABASE_URL` loads from `.env`. Pytest: 9 passed.
 - **Guardrail Added**: Financial threshold constant ₹5,000 and max retry cap 2 live on the schema layer; PII mask helpers for phone/email.
 
+### [Entry #04] requirements.txt UTF-16 encoding + ORM file location
+- **Status**: 🟢 RESOLVED
+- **Component**: Packaging / Project Structure
+- **What happened**:
+  1. `requirements.txt` was written via PowerShell `>` redirection as UTF-16 LE (BOM `FF FE` + NUL between every ASCII char). Pip reads it as `a n n o t a t e d - d o c` and cannot install.
+  2. ORM models (`Transaction`, `AuditLog`, `OptOutRegistry`) lived in `backend/database.py`, violating AGENTS.md (`backend/models.py`).
+- **Fix / Action Taken**: Regenerated `requirements.txt` as UTF-8 via Python (no PowerShell redirect). Moved ORM models to `backend/models.py`; `database.py` now holds engine/session/`init_db()` and re-exports models.
+- **Guardrail Added**: Always write lockfiles with Python `open(..., encoding='utf-8')` on Windows.
+
 ---
 *(Future debugging entries will be appended automatically by coding agents during build cycles)*
