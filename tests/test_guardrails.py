@@ -21,6 +21,7 @@ def db() -> Session:
         yield session
     finally:
         session.close()
+        engine.dispose()
 
 
 def _make_txn(

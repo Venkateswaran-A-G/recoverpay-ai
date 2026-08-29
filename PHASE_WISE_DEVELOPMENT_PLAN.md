@@ -187,12 +187,12 @@ Build the modern, responsive React/Next.js dashboard UI, visual audit trace grap
 
 | Phase | Core Milestone | Key Deliverable | Status |
 | :---: | :--- | :--- | :---: |
-| **Phase 1** | Workspace & Rules Setup | `AGENTS.md`, `.env`, Virtualenv | ⬜ Pending |
-| **Phase 2** | Database & Schemas | `database.py`, `schemas.py` | ⬜ Pending |
-| **Phase 3** | Guardrails Engine & Tests | `guardrails.py`, `tests/test_guardrails.py` | ⬜ Pending |
-| **Phase 4** | LLM Agent & Copy Generator | `agent.py` (GPT-4o-mini + Fallbacks) | ⬜ Pending |
-| **Phase 5** | FastAPI Webhooks & Simulator | `main.py` (Webhooks, Metrics, Batch Simulator) | ⬜ Pending |
-| **Phase 6** | Dashboard UI & Pitch Video | `frontend/index.html`, 5-Min Video Script | ⬜ Pending |
+| **Phase 1** | Workspace & Rules Setup | `AGENTS.md`, `.env`, Virtualenv | ✅ Complete |
+| **Phase 2** | Database & Schemas | `database.py`, `schemas.py` | ✅ Complete |
+| **Phase 3** | Guardrails Engine & Tests | `guardrails.py`, `tests/test_guardrails.py` | ✅ Complete |
+| **Phase 4** | LLM Agent & Copy Generator | `agent.py` (GPT-4o-mini + Fallbacks) | ✅ Complete |
+| **Phase 5** | FastAPI Webhooks & Simulator | `main.py` (Webhooks, Metrics, Batch Simulator) | ✅ Complete |
+| **Phase 6** | Dashboard UI & Pitch Video | `frontend/index.html`, 5-Min Video Script | ✅ Complete (pitch video is a submission artifact) |
 
 ---
 

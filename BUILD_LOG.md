@@ -84,5 +84,13 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 - **Fix / Action Taken**: Combined search + amount + status + region in `filteredTxns()`. Empty state distinguishes “no data” vs “no matches”.
 - **Guardrail Added**: High-value approve still only for `FLAGGED_FOR_APPROVAL`.
 
+### [Entry #12] MVP 100% complete and verified
+- **Status**: 🟢 VERIFIED — BUILD 100% COMPLETE
+- **Component**: Full RecoverPay AI MVP
+- **What happened**: `pytest tests/test_guardrails.py -W error` initially failed the last case on `ResourceWarning: unclosed database` (assertions themselves passed). Uvicorn was already serving `http://127.0.0.1:8000` with `/health` 200.
+- **Fix / Action Taken**: Guardrail fixture now `engine.dispose()` after `session.close()`. Re-run: **4 passed, 0 warnings**. Full suite: 30 passed. Phases 1–6 marked complete in `PHASE_WISE_DEVELOPMENT_PLAN.md`.
+- **Verified guardrails**: amount `> ₹5,000` → `FLAGGED_FOR_APPROVAL`; `retry_count >= 2` → `MAX_RETRIES_REACHED`; opt-out → `OPTED_OUT`; standard amount passes.
+- **Verified runtime**: `uvicorn backend.main:app` healthy (`test_mode: true`). Dashboard at `GET /`.
+
 ---
 *(Future debugging entries will be appended automatically by coding agents during build cycles)*
