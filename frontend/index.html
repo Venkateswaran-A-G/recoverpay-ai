@@ -1,15 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RazorpayX | RecoverPay AI Engine</title>
+  <script>
+    (function () {
+      var theme = localStorage.getItem("recoverpay-theme") || "dark";
+      document.documentElement.classList.toggle("dark", theme === "dark");
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
+      darkMode: "class",
       theme: {
         extend: {
           colors: { void: "#080a0f" },
@@ -28,7 +35,12 @@
   <style>
     body {
       font-family: Sora, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    html.dark body {
       background: #080a0f;
+      color: #f8fafc;
     }
     .orb {
       position: fixed;
@@ -38,9 +50,13 @@
       z-index: 0;
     }
     .glass {
-      background: rgba(15, 23, 42, 0.7);
+      background: rgba(255, 255, 255, 0.8);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgb(226, 232, 240);
+    }
+    html.dark .glass {
+      background: rgba(15, 23, 42, 0.7);
       border: 1px solid rgba(30, 41, 59, 0.8);
     }
     .lift {
@@ -49,12 +65,16 @@
     }
     .lift:hover {
       transform: translateY(-4px);
+      box-shadow: 0 18px 32px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(148, 163, 184, 0.2);
+    }
+    html.dark .lift:hover {
       box-shadow: 0 22px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(148, 163, 184, 0.12);
     }
     .node-3d {
       transform: perspective(800px) rotateX(4deg);
     }
-    .dotn { width: 15px; height: 15px; border-radius: 50%; border: 2px solid #334155; background: #080a0f; }
+    .dotn { width: 15px; height: 15px; border-radius: 50%; border: 2px solid #94a3b8; background: #f8fafc; }
+    html.dark .dotn { border-color: #334155; background: #080a0f; }
     .dotn.ok { border-color: #34d399; box-shadow: 0 0 10px rgba(52, 211, 153, 0.55); }
     .dotn.warn { border-color: #fbbf24; box-shadow: 0 0 10px rgba(251, 191, 36, 0.4); }
     .dotn.skip { border-color: #475569; }
@@ -75,21 +95,24 @@
     #toast { display: none; }
   </style>
 </head>
-<body class="text-slate-100 min-h-screen relative overflow-x-hidden">
-  <div class="orb w-[520px] h-[520px] bg-sky-600/20 -top-40 -left-20"></div>
-  <div class="orb w-[420px] h-[420px] bg-emerald-500/10 top-1/3 -right-24"></div>
-  <div class="orb w-[360px] h-[360px] bg-amber-500/10 bottom-0 left-1/3"></div>
+<body class="text-slate-900 dark:text-slate-100 min-h-screen relative overflow-x-hidden">
+  <div class="orb w-[520px] h-[520px] bg-sky-400/25 dark:bg-sky-600/20 -top-40 -left-20"></div>
+  <div class="orb w-[420px] h-[420px] bg-emerald-400/15 dark:bg-emerald-500/10 top-1/3 -right-24"></div>
+  <div class="orb w-[360px] h-[360px] bg-amber-400/15 dark:bg-amber-500/10 bottom-0 left-1/3"></div>
 
-  <header class="relative z-20 sticky top-0 glass border-b border-slate-800/80">
+  <header class="relative z-20 sticky top-0 glass">
     <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
       <div class="flex items-center gap-3">
         <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-sky-400 to-blue-700 shadow-[0_0_18px_rgba(56,189,248,0.45)]"></div>
-        <h1 class="text-[15px] font-semibold tracking-tight">RazorpayX <span class="text-slate-400 font-medium">| RecoverPay AI Engine</span></h1>
+        <h1 class="text-[15px] font-semibold tracking-tight">RazorpayX <span class="text-slate-500 dark:text-slate-400 font-medium">| RecoverPay AI Engine</span></h1>
       </div>
       <div class="flex items-center gap-3">
-        <button id="testBadge" type="button" title="Driven by TEST_MODE env" class="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold tracking-[0.08em] uppercase text-sky-200 bg-sky-500/15 border border-sky-400/30 shadow-glow">
+        <button id="testBadge" type="button" title="Driven by TEST_MODE env" class="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold tracking-[0.08em] uppercase text-sky-700 dark:text-sky-200 bg-sky-500/15 border border-sky-400/30 shadow-glow">
           <span class="w-2 h-2 rounded-full bg-sky-400 animate-pulse shadow-[0_0_8px_#38bdf8]"></span>
           TEST MODE
+        </button>
+        <button id="themeToggle" type="button" class="lift rounded-lg px-3 py-2 text-[12px] font-semibold border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/70" title="Toggle light and dark theme">
+          ☀️ Light
         </button>
         <button id="simulateBtn" type="button" class="lift rounded-lg px-3.5 py-2 text-[13px] font-semibold text-white bg-gradient-to-b from-sky-400 to-blue-700 border border-blue-500/60">
           Simulate 20 Failed Payments
@@ -101,22 +124,22 @@
   <main class="relative z-10 max-w-6xl mx-auto px-6 py-7">
     <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3.5 mb-6">
       <article class="glass lift rounded-2xl p-4">
-        <div class="text-xs text-slate-400 mb-2.5">Total Failed Volume</div>
+        <div class="text-xs text-slate-500 dark:text-slate-400 mb-2.5">Total Failed Volume</div>
         <div id="mFailed" class="font-mono text-[26px] font-semibold tracking-tight">₹0.00</div>
         <div class="text-[11px] text-slate-500 mt-2">All ingested failure amounts</div>
       </article>
       <article class="glass lift rounded-2xl p-4">
-        <div class="text-xs text-slate-400 mb-2.5">Recovered Revenue</div>
-        <div id="mRecovered" class="font-mono text-[26px] font-semibold tracking-tight text-emerald-400">₹0.00</div>
+        <div class="text-xs text-slate-500 dark:text-slate-400 mb-2.5">Recovered Revenue</div>
+        <div id="mRecovered" class="font-mono text-[26px] font-semibold tracking-tight text-emerald-600 dark:text-emerald-400">₹0.00</div>
         <div class="text-[11px] text-slate-500 mt-2">TEST MODE simulated recoveries</div>
       </article>
       <article class="glass lift rounded-2xl p-4">
-        <div class="text-xs text-slate-400 mb-2.5">Recovery Rate %</div>
+        <div class="text-xs text-slate-500 dark:text-slate-400 mb-2.5">Recovery Rate %</div>
         <div id="mRate" class="font-mono text-[26px] font-semibold tracking-tight">0.00%</div>
         <div class="text-[11px] text-slate-500 mt-2">Recovered / failed volume</div>
       </article>
       <article class="glass lift rounded-2xl p-4">
-        <div class="text-xs text-slate-400 mb-2.5">Net Outreach ROI</div>
+        <div class="text-xs text-slate-500 dark:text-slate-400 mb-2.5">Net Outreach ROI</div>
         <div id="mRoi" class="font-mono text-[26px] font-semibold tracking-tight">0.00x</div>
         <div class="text-[11px] text-slate-500 mt-2">Revenue / outreach cost</div>
       </article>
@@ -126,23 +149,23 @@
       <div class="flex items-start gap-3">
         <div class="text-2xl leading-none drop-shadow-[0_8px_16px_rgba(245,158,11,0.45)]">🛡️</div>
         <div>
-          <p class="text-amber-200 text-sm font-semibold">3D Amber Shield · Financial Guardrail</p>
-          <p class="text-[12px] text-amber-100/80 mt-1">Any transaction <span class="font-mono">₹5,000</span> auto-cap is intercepted. Status becomes <span class="font-semibold">FLAGGED_FOR_APPROVAL</span> — never auto-dispatched. Click 🚨 Approve &amp; Send (&gt;₹5K) to release.</p>
+          <p class="text-amber-800 dark:text-amber-200 text-sm font-semibold">3D Amber Shield · Financial Guardrail</p>
+          <p class="text-[12px] text-amber-900/80 dark:text-amber-100/80 mt-1">Any transaction <span class="font-mono">₹5,000</span> auto-cap is intercepted. Status becomes <span class="font-semibold">FLAGGED_FOR_APPROVAL</span> — never auto-dispatched. Click 🚨 Approve &amp; Send (&gt;₹5K) to release.</p>
         </div>
       </div>
     </section>
 
     <div class="flex items-end justify-between mb-3">
       <h2 class="text-[15px] font-semibold">Regional recovery table</h2>
-      <p id="streamMeta" class="text-xs text-slate-400">Waiting for a batch</p>
+      <p id="streamMeta" class="text-xs text-slate-500 dark:text-slate-400">Waiting for a batch</p>
     </div>
     <section id="stream" class="space-y-2"></section>
-    <div id="empty" class="glass rounded-2xl border-dashed border-slate-700 px-5 py-12 text-center text-[13px] text-slate-400">No recoveries yet. Run a 20-payment simulation across Karnataka, Tamil Nadu, Telangana, Maharashtra, and Delhi.</div>
+    <div id="empty" class="glass rounded-2xl border-dashed border-slate-300 dark:border-slate-700 px-5 py-12 text-center text-[13px] text-slate-500 dark:text-slate-400">No recoveries yet. Run a 20-payment simulation across Karnataka, Tamil Nadu, Telangana, Maharashtra, and Delhi.</div>
   </main>
 
   <div id="scrim" class="hidden fixed inset-0 z-30 bg-black/55 backdrop-blur-sm"></div>
-  <aside id="drawer" class="fixed top-0 right-0 z-40 h-full w-full max-w-[440px] glass border-l border-slate-800/80 p-5 overflow-y-auto" aria-label="Audit execution drawer">
-    <button id="closeDrawer" type="button" class="text-xs text-slate-300 hover:text-white">Close</button>
+  <aside id="drawer" class="fixed top-0 right-0 z-40 h-full w-full max-w-[440px] glass p-5 overflow-y-auto" aria-label="Audit execution drawer">
+    <button id="closeDrawer" type="button" class="text-xs text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">Close</button>
     <h3 id="drawerTitle" class="text-base font-semibold mt-4">Execution trace</h3>
     <p id="drawerMeta" class="text-xs text-slate-400 mb-5"></p>
     <div id="nodes" class="node-3d space-y-0"></div>
@@ -168,13 +191,13 @@
       { key: "DISPATCH", label: "Dispatch", match: ["DISPATCH", "PAYMENT_LINK_GEN"] },
     ];
     const PILL = {
-      PENDING: "bg-slate-800 text-slate-200",
-      RECOVERY_DISPATCHED: "bg-sky-500/15 text-sky-300",
-      RECOVERED: "bg-emerald-500/15 text-emerald-300",
-      FLAGGED_FOR_APPROVAL: "bg-amber-500/15 text-amber-300",
-      OPTED_OUT: "bg-rose-500/15 text-rose-300",
-      FAILED_GUARDRAIL: "bg-rose-500/15 text-rose-300",
-      MAX_RETRIES_REACHED: "bg-slate-800 text-slate-400",
+      PENDING: "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
+      RECOVERY_DISPATCHED: "bg-sky-500/15 text-sky-700 dark:text-sky-300",
+      RECOVERED: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+      FLAGGED_FOR_APPROVAL: "bg-amber-500/15 text-amber-800 dark:text-amber-300",
+      OPTED_OUT: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
+      FAILED_GUARDRAIL: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
+      MAX_RETRIES_REACHED: "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
     };
 
     const $ = (id) => document.getElementById(id);
@@ -220,17 +243,17 @@
         row.innerHTML = `
           <div>
             <div class="text-sm font-semibold">${escapeHtml(txn.customer_name || "Customer")}</div>
-            <div class="text-[11px] text-slate-400 mt-0.5">${escapeHtml(txn.customer_phone || "")}</div>
+            <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">${escapeHtml(txn.customer_phone || "")}</div>
           </div>
-          <div><span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] bg-slate-900/70 border border-slate-800/80">📍 ${escapeHtml(txn.customer_state || "Unknown")} · ${escapeHtml(localeFor(txn.customer_state))}</span></div>
+          <div><span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] bg-white/80 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800/80">📍 ${escapeHtml(txn.customer_state || "Unknown")} · ${escapeHtml(localeFor(txn.customer_state))}</span></div>
           <div>
-            <div class="font-mono text-[11px] text-slate-200">${escapeHtml(txn.failure_code || "")}</div>
-            <div class="font-mono text-[11px] text-slate-400 mt-0.5">${formatINR(txn.amount)}</div>
+            <div class="font-mono text-[11px] text-slate-700 dark:text-slate-200">${escapeHtml(txn.failure_code || "")}</div>
+            <div class="font-mono text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">${formatINR(txn.amount)}</div>
           </div>
           <div><span class="inline-block rounded-full px-2 py-1 text-[10px] font-semibold ${PILL[txn.recovery_status] || PILL.PENDING}">${prettyStatus(txn.recovery_status)}</span></div>
           <div class="flex flex-wrap gap-1.5 justify-end">
-            ${flagged ? `<button class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-amber-300 bg-amber-500/15 border border-amber-500/40" data-approve="${txn.id}">🚨 Approve &amp; Send (&gt;₹5K)</button>` : ""}
-            <button class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold bg-slate-900/70 border border-slate-800/80" data-inspect="${txn.id}">Inspect Audit</button>
+            ${flagged ? `<button class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-amber-800 dark:text-amber-300 bg-amber-500/15 border border-amber-500/40" data-approve="${txn.id}">🚨 Approve &amp; Send (&gt;₹5K)</button>` : ""}
+            <button class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold bg-white/80 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800/80" data-inspect="${txn.id}">Inspect Audit</button>
           </div>`;
         stream.appendChild(row);
       });
@@ -331,6 +354,20 @@
         }
       }
     });
+
+    function syncThemeToggle() {
+      const dark = document.documentElement.classList.contains("dark");
+      $("themeToggle").textContent = dark ? "☀️ Light" : "🌙 Dark";
+    }
+    function applyTheme(theme) {
+      document.documentElement.classList.toggle("dark", theme === "dark");
+      localStorage.setItem("recoverpay-theme", theme);
+      syncThemeToggle();
+    }
+    $("themeToggle").addEventListener("click", () => {
+      applyTheme(document.documentElement.classList.contains("dark") ? "light" : "dark");
+    });
+    syncThemeToggle();
 
     $("closeDrawer").addEventListener("click", closeDrawer);
     $("scrim").addEventListener("click", closeDrawer);

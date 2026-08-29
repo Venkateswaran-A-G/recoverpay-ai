@@ -70,5 +70,12 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 - **Fix / Action Taken**: Deep zinc `#080a0f` ambient orbs, frosted metric cards, amber ₹5K shield banner, 3D audit drawer. No browser MCP — verified via HTML assertions and API smoke.
 - **Guardrail Added**: Approve button still only renders for `FLAGGED_FOR_APPROVAL`.
 
+### [Entry #10] Light / Dark theme toggle
+- **Status**: 🟢 RESOLVED
+- **Component**: Frontend dashboard
+- **What happened**: Dark was previously hardcoded (`#080a0f` only). No browser automation to click the toggle in a viewport.
+- **Fix / Action Taken**: `darkMode: 'class'`, FOUC-prevention script, `localStorage.recoverpay-theme`, light glass `bg-white/80` / `#f8fafc`. Verified toggle strings and config in served HTML.
+- **Guardrail Added**: Default theme remains dark (TEST MODE demo look) until the user switches.
+
 ---
 *(Future debugging entries will be appended automatically by coding agents during build cycles)*

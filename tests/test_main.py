@@ -94,6 +94,11 @@ def test_dashboard_served_at_root(client):
     assert "#080a0f" in response.text
     assert "Net Outreach ROI" in response.text
     assert "Amber Shield" in response.text
+    assert 'darkMode: "class"' in response.text
+    assert "themeToggle" in response.text
+    assert "recoverpay-theme" in response.text
+    assert "☀️ Light" in response.text
+    assert "🌙 Dark" in response.text
 
 
 def test_webhook_rejects_invalid_hmac(client):

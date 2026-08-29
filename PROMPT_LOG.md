@@ -79,5 +79,14 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `PROMPT_LOG.md`, `BUILD_LOG.md`
 - **Actions Executed**: Restyled dashboard. Pytest + uvicorn HTML smoke. Committed and pushed to main.
 
+### [Prompt #08] - Light / Dark glassmorphism toggle
+- **Timestamp**: 2026-08-29 / Phase 6 theme
+- **Exact User Prompt**: "Please build frontend/index.html ... WITH Light & Dark Mode Toggle: Tailwind darkMode class, Theme Toggle Switch (☀️ Light / 🌙 Dark), localStorage, dark slate #080a0f vs light #f8fafc... commit 'feat: implement 3D glassmorphism fintech dashboard UI with Light and Dark mode toggle and multi-lingual badges' and push to main."
+- **Files Created / Modified**:
+  - `frontend/index.html` (class darkMode, theme toggle, dual glass tokens)
+  - `tests/test_main.py`
+  - `PROMPT_LOG.md`, `BUILD_LOG.md`
+- **Actions Executed**: Added header toggle + localStorage. Pytest + HTML smoke on :8000. Committed and pushed to main.
+
 ---
 *(Future prompts and file modifications will be appended automatically by Cursor Pro)*
