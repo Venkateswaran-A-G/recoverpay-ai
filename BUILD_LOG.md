@@ -92,5 +92,12 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 - **Verified guardrails**: amount `> ₹5,000` → `FLAGGED_FOR_APPROVAL`; `retry_count >= 2` → `MAX_RETRIES_REACHED`; opt-out → `OPTED_OUT`; standard amount passes.
 - **Verified runtime**: `uvicorn backend.main:app` healthy (`test_mode: true`). Dashboard at `GET /`.
 
+### [Entry #13] Simulate button ignored HTTP errors
+- **Status**: 🟢 RESOLVED
+- **Component**: Dashboard UI
+- **What happened**: `Simulate 20 Failed Payments` always toasted `data.flagged_for_approval` / `data.dispatched` even on 4xx/5xx, showing `undefined`. Approve already checked `res.ok`.
+- **Fix / Action Taken**: Parse JSON safely, throw on `!res.ok` with `detail` or status, toast the error message.
+- **Guardrail Added**: Failed batch no longer calls `refresh()` as if the run succeeded.
+
 ---
 *(Future debugging entries will be appended automatically by coding agents during build cycles)*

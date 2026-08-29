@@ -415,11 +415,16 @@
       btn.textContent = "Simulating…";
       try {
         const res = await fetch("/api/v1/simulator/run-batch?count=20", { method: "POST" });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const detail = data.detail;
+          const message = Array.isArray(detail) ? detail[0]?.msg : detail;
+          throw new Error(message || `Simulation failed (${res.status})`);
+        }
         toast(`Batch done · ${data.flagged_for_approval} flagged · ${data.dispatched} dispatched`);
         await refresh();
       } catch (err) {
-        toast("Simulation failed");
+        toast(String(err.message || err));
       } finally {
         btn.disabled = false;
         btn.textContent = "Simulate 20 Failed Payments";

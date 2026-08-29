@@ -107,5 +107,14 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `PROMPT_LOG.md`
 - **Actions Executed**: `pytest tests/test_guardrails.py -W error` → 4 passed, 0 warnings. `GET /health` on running uvicorn → 200 `{status: ok, test_mode: true}`. Committed and pushed to main.
 
+### [Prompt #11] - Fix simulate button error handling
+- **Timestamp**: 2026-08-29 / Dashboard bugfix
+- **Exact User Prompt**: "Verify these issues exist and fix them: Bug 1: The simulate button click handler calls fetch() and immediately parses the response with res.json() without checking the HTTP status code first..."
+- **Files Created / Modified**:
+  - `frontend/index.html` (simulate handler checks `res.ok` like approve)
+  - `tests/test_main.py`
+  - `PROMPT_LOG.md`, `BUILD_LOG.md`
+- **Actions Executed**: Confirmed missing `res.ok` on simulate. Error toasts now use FastAPI `detail` / status instead of `undefined` counts.
+
 ---
 *(Future prompts and file modifications will be appended automatically by Cursor Pro)*

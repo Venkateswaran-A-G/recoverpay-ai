@@ -107,6 +107,8 @@ def test_dashboard_served_at_root(client):
     assert "All Regions" in response.text
     assert "Karnataka (Kanglish)" in response.text
     assert "filteredTxns" in response.text
+    assert 'if (!res.ok)' in response.text
+    assert "Simulation failed" in response.text
 
 
 def test_webhook_rejects_invalid_hmac(client):
