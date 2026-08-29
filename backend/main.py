@@ -10,8 +10,11 @@ from contextlib import asynccontextmanager
 from decimal import Decimal
 from typing import Any
 
+from pathlib import Path
+
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from backend.agent import diagnose_failure
@@ -59,6 +62,7 @@ SIM_NAMES = {
     "Delhi": ("Priya", "Aman"),
 }
 OPT_OUT_SIM_PHONE = "+919800000001"
+FRONTEND_INDEX = Path(__file__).resolve().parent.parent / "frontend" / "index.html"
 
 
 @asynccontextmanager
@@ -368,9 +372,16 @@ def _maybe_simulate_recovery(db: Session, txn: Transaction, recover: bool) -> No
     )
 
 
+@app.get("/", include_in_schema=False)
+def serve_dashboard():
+    if not FRONTEND_INDEX.is_file():
+        raise HTTPException(status_code=404, detail="Dashboard not found")
+    return FileResponse(FRONTEND_INDEX, media_type="text/html")
+
+
 @app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok", "service": "recoverpay-ai"}
+def health() -> dict[str, Any]:
+    return {"status": "ok", "service": "recoverpay-ai", "test_mode": is_test_mode()}
 
 
 @app.post("/api/v1/webhooks/razorpay", response_model=WebhookIngestResponse, status_code=202)

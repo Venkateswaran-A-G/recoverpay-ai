@@ -83,6 +83,16 @@ def _webhook_body(**overrides) -> dict:
     }
 
 
+def test_dashboard_served_at_root(client):
+    test_client, _ = client
+    response = test_client.get("/")
+    assert response.status_code == 200
+    assert "text/html" in response.headers.get("content-type", "")
+    assert "RazorpayX | RecoverPay AI Engine" in response.text
+    assert "Simulate 20 Failed Payments" in response.text
+    assert "Inspect Audit" in response.text
+
+
 def test_webhook_rejects_invalid_hmac(client):
     test_client, _ = client
     body = json.dumps(_webhook_body()).encode()

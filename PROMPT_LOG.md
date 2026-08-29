@@ -60,5 +60,15 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `PROMPT_LOG.md`, `BUILD_LOG.md`
 - **Actions Executed**: Pytest 29 passed. Uvicorn smoke: health 200, batch 10, invalid HMAC 401, Tamil Nadu webhook 202 + Tanglish dispatch, PII-masked transactions, audit graph. Committed and pushed to main.
 
+### [Prompt #06] - RazorpayX / Stripe / Linear dashboard UI
+- **Timestamp**: 2026-08-29 / Phase 6
+- **Exact User Prompt**: "Hello! Read @AGENTS.md, @technical_design_doc.md, and @pitch_and_interview_defense.md first. Please build frontend/index.html (mounted on FastAPI at GET /) styled like a blend of RazorpayX Merchant Portal + Stripe Dashboard + Linear.app: RazorpayX theme & header, Stripe-style metric cards, Wise/Revolut regional transaction stream, high-value guardrail highlight, Linear-style visual audit execution drawer. Test by running uvicorn backend.main:app --reload and opening http://localhost:8000. Log this prompt in @PROMPT_LOG.md and any issue in @BUILD_LOG.md. Finally, git commit with message 'feat: implement RazorpayX and Stripe inspired fintech dashboard UI with multi-lingual badges' and push to main."
+- **Files Created / Modified**:
+  - `frontend/index.html`
+  - `backend/main.py` (GET `/` FileResponse, `/health` includes `test_mode`)
+  - `tests/test_main.py`
+  - `PROMPT_LOG.md`, `BUILD_LOG.md`
+- **Actions Executed**: Mounted dashboard at `/`. Pytest + uvicorn HTML/API smoke. Committed and pushed to main.
+
 ---
 *(Future prompts and file modifications will be appended automatically by Cursor Pro)*

@@ -56,5 +56,12 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 - **Fix / Action Taken**: Added SQLite `ALTER TABLE` in `init_db()`. HMAC is verified on the raw body before JSON parse (401 on mismatch). High-value amounts never auto-dispatch. Uvicorn smoke on `:8000` succeeded.
 - **Guardrail Added**: Webhook fail-closed without a valid `X-Razorpay-Signature`. Dashboard PII masking on list/detail routes.
 
+### [Entry #08] Phase 6 dashboard UI
+- **Status**: 🟢 RESOLVED
+- **Component**: Frontend dashboard
+- **What happened**: No Cursor browser MCP available, so UI clicks were not exercised in a real viewport. Dashboard is a single static HTML file (not Next.js) as requested.
+- **Fix / Action Taken**: Served `frontend/index.html` at `GET /`. Verified HTML payload and API flows the UI calls (metrics, batch, approve, audit detail) via TestClient / uvicorn + httpx.
+- **Guardrail Added**: Transaction list still uses PII-masked API fields; high-value rows only expose Approve when status is `FLAGGED_FOR_APPROVAL`.
+
 ---
 *(Future debugging entries will be appended automatically by coding agents during build cycles)*
