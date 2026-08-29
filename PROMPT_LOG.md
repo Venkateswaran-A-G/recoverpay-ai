@@ -36,5 +36,16 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `BUILD_LOG.md`
 - **Actions Executed**: Implemented deterministic `evaluate_guardrails()`. Pytest: 4 passed in `tests/test_guardrails.py`, 14 passed overall. Committed and pushed to main.
 
+### [Prompt #04] - Regional multi-lingual LLM diagnostic agent
+- **Timestamp**: 2026-08-29 / Phase 4
+- **Exact User Prompt**: "Hello! Read @AGENTS.md and @ai_design_doc.md first. Please create backend/agent.py using OpenAI GPT-4o-mini with structured JSON parsing to diagnose payment failure codes and generate localized WhatsApp recovery messages in the customer's native regional language based on location/state: Karnataka -> Kannada/English; Tamil Nadu -> Tanglish / Tamil; Telangana / AP -> Telugu / English; Maharashtra -> Marathi / Hinglish; Delhi / North -> Hinglish; Default / Preference -> Simple English. Ensure output is validated via LLMDiagnosticOutput Pydantic schema and preserves the Razorpay Payment Link. Include a deterministic fallback mechanism using pre-defined regional templates if the API call fails or key is missing. Log this prompt in @PROMPT_LOG.md and any issue in @BUILD_LOG.md. Finally, git commit with message 'feat: implement regional multi-lingual LLM diagnostic agent with fallback templates' and push to main."
+- **Files Created / Modified**:
+  - `backend/agent.py` (GPT-4o-mini JSON mode, locale router, link check, regional fallbacks)
+  - `backend/schemas.py` (`LanguageRegister`, `RecoveryCopyRequest`, `language_register` on `LLMDiagnosticOutput`)
+  - `tests/test_agent.py`
+  - `PROMPT_LOG.md`
+  - `BUILD_LOG.md`
+- **Actions Executed**: Implemented diagnose_failure() with schema + exact rzp.io link gate. Fallback when TEST_MODE, missing key, low confidence, or bad JSON. Ran pytest. Committed and pushed to main.
+
 ---
 *(Future prompts and file modifications will be appended automatically by Cursor Pro)*

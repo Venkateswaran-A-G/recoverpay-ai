@@ -60,6 +60,20 @@ class FailureCategory(str, Enum):
     AUTHENTICATION_FAILED = "AUTHENTICATION_FAILED"
 
 
+class LanguageRegister(str, Enum):
+    """WhatsApp copy register selected from customer state / preference."""
+
+    KANNADA_ENGLISH = "kannada_english"
+    TANGLISH = "tanglish"
+    TELUGU_ENGLISH = "telugu_english"
+    MARATHI_HINGLISH = "marathi_hinglish"
+    HINGLISH = "hinglish"
+    ENGLISH = "english"
+
+
+MIN_LLM_CONFIDENCE = 0.75
+
+
 # ---------------------------------------------------------------------------
 # PII helpers (frontend / audit display)
 # ---------------------------------------------------------------------------
@@ -144,8 +158,25 @@ class RazorpayFailurePayload(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+class RecoveryCopyRequest(BaseModel):
+    """Operational context sent to the diagnostic agent (no cardholder data)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    merchant_name: str = "the merchant"
+    customer_first_name: str = "there"
+    order_amount: Decimal = Field(..., gt=0)
+    currency: str = "INR"
+    failure_code: str
+    failure_description: Optional[str] = None
+    payment_link: str = Field(..., min_length=8)
+    retry_attempt: int = Field(default=1, ge=0)
+    customer_state: Optional[str] = None
+    language_preference: Optional[str] = None
+
+
 class LLMDiagnosticOutput(BaseModel):
-    """Typed JSON contract for GPT-4o-mini diagnostic + Hinglish copy."""
+    """Typed JSON contract for GPT-4o-mini diagnostic + regional recovery copy."""
 
     model_config = ConfigDict(extra="ignore")
 
@@ -157,10 +188,16 @@ class LLMDiagnosticOutput(BaseModel):
         "AUTHENTICATION_FAILED",
     ]
     diagnostic_summary: str = Field(..., min_length=5, max_length=500)
-    hinglish_message: str = Field(..., min_length=10, max_length=300)
+    hinglish_message: str = Field(
+        ...,
+        min_length=10,
+        max_length=300,
+        description="WhatsApp recovery copy in the resolved regional register",
+    )
     confidence_score: float = Field(..., ge=0.0, le=1.0)
     contains_payment_link: bool
     used_fallback: bool = False
+    language_register: LanguageRegister = LanguageRegister.ENGLISH
 
     @field_validator("hinglish_message")
     @classmethod

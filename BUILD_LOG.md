@@ -41,5 +41,13 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 - **Fix / Action Taken**: `backend/guardrails.py` evaluates opt-out → retry cap (`>= 2`) → amount `> ₹5,000`. `tests/test_guardrails.py`: 4 passed. Full suite: 14 passed.
 - **Guardrail Added**: High-value payments never auto-dispatch (`requires_human_approval=true`, `FLAGGED_FOR_APPROVAL`).
 
+### [Entry #06] Phase 4 regional LLM agent
+- **Status**: 🟢 RESOLVED
+- **Component**: LLM Diagnostic Agent
+- **What happened**: OpenAI key in `.env` is a placeholder (`sk-proj-...`) and `TEST_MODE=true`, so live GPT-4o-mini is not called in this workspace. That is expected.
+- **Fix / Action Taken**: Production path uses GPT-4o-mini `response_format=json_object` + `LLMDiagnosticOutput`. Placeholder/TEST_MODE/API errors use deterministic regional templates. Link must appear verbatim or copy is discarded.
+- **Guardrail Added**: Confidence `< 0.75` or mutated Razorpay link → `LLM_FALLBACK_TRIGGERED` template. Prompt-injection names sanitized.
+- **Follow-up**: `python -m backend.agent` crashed on Windows cp1252 when printing `₹`. Fixed `__main__` to reconfigure stdout as UTF-8.
+
 ---
 *(Future debugging entries will be appended automatically by coding agents during build cycles)*
