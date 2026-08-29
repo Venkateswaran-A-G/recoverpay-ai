@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 from typing import Generator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
 
 from backend.models import AuditLog, Base, OptOutRegistry, Transaction
@@ -57,9 +57,23 @@ def get_db() -> Generator:
         db.close()
 
 
+def _ensure_sqlite_columns() -> None:
+    """Add columns introduced after the first create_all (SQLite has no migrations)."""
+    if not DATABASE_URL.startswith("sqlite"):
+        return
+    inspector = inspect(engine)
+    if "transactions" not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns("transactions")}
+    if "customer_state" not in existing:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN customer_state VARCHAR(50)"))
+
+
 def init_db() -> None:
     """Create all tables if they do not already exist."""
     Base.metadata.create_all(bind=engine)
+    _ensure_sqlite_columns()
 
 
 if __name__ == "__main__":

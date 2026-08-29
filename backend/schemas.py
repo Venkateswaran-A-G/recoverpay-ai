@@ -258,6 +258,7 @@ class TransactionCreate(BaseModel):
     currency: str = "INR"
     failure_code: str
     failure_reason: Optional[str] = None
+    customer_state: Optional[str] = None
     recovery_status: RecoveryStatus = RecoveryStatus.PENDING
     retry_count: int = Field(default=0, ge=0)
 
@@ -275,6 +276,7 @@ class TransactionRead(BaseModel):
     currency: str
     failure_code: str
     failure_reason: Optional[str] = None
+    customer_state: Optional[str] = None
     recovery_status: str
     retry_count: int
     created_at: datetime
@@ -332,3 +334,47 @@ class OptOutRead(BaseModel):
     phone_number: str
     opt_out_source: Optional[str] = None
     created_at: datetime
+
+
+class ExecutionGraphNode(BaseModel):
+    step_name: str
+    step_status: str
+    execution_time_ms: Optional[int] = None
+
+
+class TransactionAuditDetail(BaseModel):
+    transaction: TransactionPublic
+    audit_logs: list[AuditLogRead]
+    execution_graph: list[ExecutionGraphNode]
+
+
+class WebhookIngestResponse(BaseModel):
+    accepted: bool
+    transaction_id: str
+    recovery_status: str
+    requires_human_approval: bool = False
+    language_register: Optional[str] = None
+    already_processed: bool = False
+
+
+class ApproveResponse(BaseModel):
+    transaction_id: str
+    recovery_status: str
+    requires_human_approval: bool = False
+    language_register: Optional[str] = None
+    message: str
+
+
+class BatchSimulatorResponse(BaseModel):
+    count: int
+    processed: int
+    flagged_for_approval: int
+    opted_out: int
+    dispatched: int
+    recovered: int
+    max_retries_reached: int
+    states: list[str]
+    metrics: DashboardMetrics
+
+
+OUTREACH_COST_PER_MESSAGE_INR = Decimal("2.10")

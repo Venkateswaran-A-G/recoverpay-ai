@@ -47,5 +47,18 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `BUILD_LOG.md`
 - **Actions Executed**: Implemented diagnose_failure() with schema + exact rzp.io link gate. Fallback when TEST_MODE, missing key, low confidence, or bad JSON. Ran pytest. Committed and pushed to main.
 
+### [Prompt #05] - FastAPI webhook engine, metrics, and batch simulator
+- **Timestamp**: 2026-08-29 / Phase 5
+- **Exact User Prompt**: "Hello! Read @AGENTS.md, @technical_design_doc.md, and @ai_design_doc.md first. Please build backend/main.py implementing all FastAPI endpoints specified in technical_design_doc.md: Razorpay Webhook Ingestion (POST /api/v1/webhooks/razorpay) with HMAC SHA256... Dashboard Metrics... Transactions Route... Audit Logs... Manual Approval... Batch Simulator... Test backend/main.py using uvicorn. Log this prompt in @PROMPT_LOG.md and any issue in @BUILD_LOG.md. Finally, git commit with message 'feat: implement FastAPI webhook engine with multi-lingual regional recovery, audit logging, and batch simulator' and push to main."
+- **Files Created / Modified**:
+  - `backend/main.py` (all FastAPI routes + recovery pipeline)
+  - `backend/razorpay_client.py` (HMAC SHA256 + TEST_MODE payment links)
+  - `backend/models.py` / `backend/database.py` (`customer_state` + SQLite ALTER)
+  - `backend/schemas.py` (API response models)
+  - `tests/test_main.py`
+  - `scripts/smoke_api.py`
+  - `PROMPT_LOG.md`, `BUILD_LOG.md`
+- **Actions Executed**: Pytest 29 passed. Uvicorn smoke: health 200, batch 10, invalid HMAC 401, Tamil Nadu webhook 202 + Tanglish dispatch, PII-masked transactions, audit graph. Committed and pushed to main.
+
 ---
 *(Future prompts and file modifications will be appended automatically by Cursor Pro)*

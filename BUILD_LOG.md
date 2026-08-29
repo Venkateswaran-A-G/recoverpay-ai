@@ -49,5 +49,12 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 - **Guardrail Added**: Confidence `< 0.75` or mutated Razorpay link → `LLM_FALLBACK_TRIGGERED` template. Prompt-injection names sanitized.
 - **Follow-up**: `python -m backend.agent` crashed on Windows cp1252 when printing `₹`. Fixed `__main__` to reconfigure stdout as UTF-8.
 
+### [Entry #07] Phase 5 FastAPI engine
+- **Status**: 🟢 RESOLVED
+- **Component**: Webhooks / Dashboard API
+- **What happened**: Existing `recoverpay.db` predates `customer_state`. Live GPT-4o-mini is skipped because `TEST_MODE=true` (regional fallback templates used, logged as `LLM_FALLBACK_TRIGGERED`).
+- **Fix / Action Taken**: Added SQLite `ALTER TABLE` in `init_db()`. HMAC is verified on the raw body before JSON parse (401 on mismatch). High-value amounts never auto-dispatch. Uvicorn smoke on `:8000` succeeded.
+- **Guardrail Added**: Webhook fail-closed without a valid `X-Razorpay-Signature`. Dashboard PII masking on list/detail routes.
+
 ---
 *(Future debugging entries will be appended automatically by coding agents during build cycles)*

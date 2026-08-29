@@ -39,6 +39,7 @@ class Transaction(Base):
     currency: Mapped[str] = mapped_column(String(10), nullable=False, default="INR")
     failure_code: Mapped[str] = mapped_column(String(100), nullable=False)
     failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    customer_state: Mapped[str | None] = mapped_column(String(50), nullable=True)
     recovery_status: Mapped[str] = mapped_column(
         String(50), nullable=False, default="PENDING", index=True
     )
