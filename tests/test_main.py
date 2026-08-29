@@ -91,6 +91,9 @@ def test_dashboard_served_at_root(client):
     assert "RazorpayX | RecoverPay AI Engine" in response.text
     assert "Simulate 20 Failed Payments" in response.text
     assert "Inspect Audit" in response.text
+    assert "#080a0f" in response.text
+    assert "Net Outreach ROI" in response.text
+    assert "Amber Shield" in response.text
 
 
 def test_webhook_rejects_invalid_hmac(client):

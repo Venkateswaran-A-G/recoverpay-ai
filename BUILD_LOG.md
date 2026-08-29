@@ -63,5 +63,12 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 - **Fix / Action Taken**: Served `frontend/index.html` at `GET /`. Verified HTML payload and API flows the UI calls (metrics, batch, approve, audit detail) via TestClient / uvicorn + httpx.
 - **Guardrail Added**: Transaction list still uses PII-masked API fields; high-value rows only expose Approve when status is `FLAGGED_FOR_APPROVAL`.
 
+### [Entry #09] 3D glassmorphism restyle
+- **Status**: 🟢 RESOLVED
+- **Component**: Frontend dashboard
+- **What happened**: Visual restyle only. Same APIs. Tailwind CDN + custom `.glass` / `.lift` because a Next.js build is not in this phase.
+- **Fix / Action Taken**: Deep zinc `#080a0f` ambient orbs, frosted metric cards, amber ₹5K shield banner, 3D audit drawer. No browser MCP — verified via HTML assertions and API smoke.
+- **Guardrail Added**: Approve button still only renders for `FLAGGED_FOR_APPROVAL`.
+
 ---
 *(Future debugging entries will be appended automatically by coding agents during build cycles)*
