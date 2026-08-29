@@ -88,5 +88,14 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `PROMPT_LOG.md`, `BUILD_LOG.md`
 - **Actions Executed**: Added header toggle + localStorage. Pytest + HTML smoke on :8000. Committed and pushed to main.
 
+### [Prompt #09] - Search and multi-filter toolbar
+- **Timestamp**: 2026-08-29 / Phase 6 filters
+- **Exact User Prompt**: "Please build frontend/index.html ... WITH Search & Multi-Filter Control Toolbar: live search, amount range, status pills, regional pills, Light/Dark toggle... commit 'feat: implement 3D glassmorphism fintech dashboard UI with search bar, multi-filters, Light/Dark mode, and multi-lingual badges' and push to main."
+- **Files Created / Modified**:
+  - `frontend/index.html` (toolbar + combined client-side filters)
+  - `tests/test_main.py`
+  - `PROMPT_LOG.md`, `BUILD_LOG.md`
+- **Actions Executed**: Filters AND together on name/phone/payment ID, amount bands, status, and region. Pytest + HTML smoke. Committed and pushed to main.
+
 ---
 *(Future prompts and file modifications will be appended automatically by Cursor Pro)*

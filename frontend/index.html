@@ -93,6 +93,12 @@
     #drawer.open { transform: translateX(0); }
     #scrim.open { display: block; }
     #toast { display: none; }
+    .chip { border: 1px solid transparent; }
+    .chip.active {
+      border-color: rgb(56, 189, 248);
+      background: rgba(14, 165, 233, 0.14);
+      color: inherit;
+    }
   </style>
 </head>
 <body class="text-slate-900 dark:text-slate-100 min-h-screen relative overflow-x-hidden">
@@ -155,6 +161,34 @@
       </div>
     </section>
 
+    <section class="glass rounded-2xl p-4 mb-4 space-y-3">
+      <div class="flex flex-col lg:flex-row gap-3">
+        <label class="sr-only" for="searchInput">Search</label>
+        <input id="searchInput" type="search" placeholder="Search name, phone, or payment ID…" class="flex-1 rounded-xl px-3.5 py-2.5 text-sm bg-white/80 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 outline-none focus:border-sky-400" />
+        <select id="amountFilter" class="rounded-xl px-3 py-2.5 text-sm bg-white/80 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700">
+          <option value="all">All Amounts</option>
+          <option value="lt2000">Under ₹2,000</option>
+          <option value="mid">₹2,000 - ₹5,000</option>
+          <option value="gt5000">Above ₹5,000</option>
+        </select>
+      </div>
+      <div class="flex flex-wrap gap-1.5" id="statusFilters">
+        <button type="button" data-status="all" class="chip active rounded-full px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800">All Statuses</button>
+        <button type="button" data-status="RECOVERED" class="chip rounded-full px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800">🟢 Recovered</button>
+        <button type="button" data-status="FLAGGED_FOR_APPROVAL" class="chip rounded-full px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800">🚨 Flagged (&gt;₹5K Approval)</button>
+        <button type="button" data-status="RECOVERY_DISPATCHED" class="chip rounded-full px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800">📩 Dispatched</button>
+        <button type="button" data-status="OPTED_OUT" class="chip rounded-full px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800">⛔ Opted-Out</button>
+      </div>
+      <div class="flex flex-wrap gap-1.5" id="regionFilters">
+        <button type="button" data-region="all" class="chip active rounded-full px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800">All Regions</button>
+        <button type="button" data-region="ka" class="chip rounded-full px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800">📍 Karnataka (Kanglish)</button>
+        <button type="button" data-region="tn" class="chip rounded-full px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800">📍 Tamil Nadu (Tanglish)</button>
+        <button type="button" data-region="tg" class="chip rounded-full px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800">📍 Telangana/AP (Telugu)</button>
+        <button type="button" data-region="mh" class="chip rounded-full px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800">📍 Maharashtra (Marathi)</button>
+        <button type="button" data-region="dl" class="chip rounded-full px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800">📍 Delhi/North (Hinglish)</button>
+      </div>
+    </section>
+
     <div class="flex items-end justify-between mb-3">
       <h2 class="text-[15px] font-semibold">Regional recovery table</h2>
       <p id="streamMeta" class="text-xs text-slate-500 dark:text-slate-400">Waiting for a batch</p>
@@ -186,7 +220,7 @@
     const PIPELINE = [
       { key: "INGESTION", label: "Ingestion", match: ["INGESTION"] },
       { key: "HMAC", label: "HMAC", synthetic: true },
-      { key: "GUARDRAIL_CHECK", label: "Guardrail Check", match: ["GUARDRAIL_CHECK"] },
+      { key: "GUARDRAIL_CHECK", label: "Guardrails", match: ["GUARDRAIL_CHECK"] },
       { key: "LLM", label: "Regional LLM Diagnosis", match: ["LLM_DIAGNOSIS", "LLM_FALLBACK_TRIGGERED"] },
       { key: "DISPATCH", label: "Dispatch", match: ["DISPATCH", "PAYMENT_LINK_GEN"] },
     ];
@@ -198,6 +232,16 @@
       OPTED_OUT: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
       FAILED_GUARDRAIL: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
       MAX_RETRIES_REACHED: "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+    };
+
+    let allTxns = [];
+    const filters = { q: "", amount: "all", status: "all", region: "all" };
+    const REGION_GROUPS = {
+      ka: ["karnataka", "ka", "bengaluru", "bangalore"],
+      tn: ["tamil nadu", "tamilnadu", "tn", "chennai"],
+      tg: ["telangana", "andhra pradesh", "andhra", "ap", "hyderabad", "ts"],
+      mh: ["maharashtra", "mh", "mumbai", "pune"],
+      dl: ["delhi", "new delhi", "ncr", "north", "haryana", "punjab", "uttar pradesh", "up"],
     };
 
     const $ = (id) => document.getElementById(id);
@@ -227,13 +271,49 @@
       $("mRoi").textContent = Number(data.net_roi || 0).toFixed(2) + "x";
     }
 
-    async function loadTransactions() {
-      const rows = await (await fetch("/api/v1/transactions?limit=100")).json();
+    function matchesAmount(amount) {
+      const n = Number(amount);
+      if (filters.amount === "lt2000") return n < 2000;
+      if (filters.amount === "mid") return n >= 2000 && n <= 5000;
+      if (filters.amount === "gt5000") return n > 5000;
+      return true;
+    }
+
+    function matchesRegion(state) {
+      if (filters.region === "all") return true;
+      const key = String(state || "").trim().toLowerCase();
+      return (REGION_GROUPS[filters.region] || []).includes(key);
+    }
+
+    function matchesSearch(txn) {
+      const q = filters.q.trim().toLowerCase();
+      if (!q) return true;
+      const hay = [txn.customer_name, txn.customer_phone, txn.razorpay_payment_id, txn.id]
+        .map((v) => String(v || "").toLowerCase())
+        .join(" ");
+      return hay.includes(q);
+    }
+
+    function filteredTxns() {
+      return allTxns.filter((txn) => {
+        if (!matchesSearch(txn)) return false;
+        if (!matchesAmount(txn.amount)) return false;
+        if (filters.status !== "all" && txn.recovery_status !== filters.status) return false;
+        if (!matchesRegion(txn.customer_state)) return false;
+        return true;
+      });
+    }
+
+    function renderRows(rows) {
       const stream = $("stream");
       stream.innerHTML = "";
+      const emptyFilter = allTxns.length > 0 && rows.length === 0;
       $("empty").style.display = rows.length ? "none" : "block";
-      $("streamMeta").textContent = rows.length
-        ? rows.length + " events · phones and emails masked"
+      $("empty").textContent = emptyFilter
+        ? "No rows match the current search and filters."
+        : "No recoveries yet. Run a 20-payment simulation across Karnataka, Tamil Nadu, Telangana, Maharashtra, and Delhi.";
+      $("streamMeta").textContent = allTxns.length
+        ? rows.length + " of " + allTxns.length + " events · phones and emails masked"
         : "Waiting for a batch";
       rows.forEach((txn) => {
         const high = Number(txn.amount) > 5000 || txn.recovery_status === "FLAGGED_FOR_APPROVAL";
@@ -257,6 +337,15 @@
           </div>`;
         stream.appendChild(row);
       });
+    }
+
+    function applyFilters() {
+      renderRows(filteredTxns());
+    }
+
+    async function loadTransactions() {
+      allTxns = await (await fetch("/api/v1/transactions?limit=200")).json();
+      applyFilters();
     }
 
     function escapeHtml(s) {
@@ -368,6 +457,29 @@
       applyTheme(document.documentElement.classList.contains("dark") ? "light" : "dark");
     });
     syncThemeToggle();
+
+    $("searchInput").addEventListener("input", (e) => {
+      filters.q = e.target.value;
+      applyFilters();
+    });
+    $("amountFilter").addEventListener("change", (e) => {
+      filters.amount = e.target.value;
+      applyFilters();
+    });
+    $("statusFilters").addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-status]");
+      if (!btn) return;
+      filters.status = btn.getAttribute("data-status");
+      $("statusFilters").querySelectorAll(".chip").forEach((el) => el.classList.toggle("active", el === btn));
+      applyFilters();
+    });
+    $("regionFilters").addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-region]");
+      if (!btn) return;
+      filters.region = btn.getAttribute("data-region");
+      $("regionFilters").querySelectorAll(".chip").forEach((el) => el.classList.toggle("active", el === btn));
+      applyFilters();
+    });
 
     $("closeDrawer").addEventListener("click", closeDrawer);
     $("scrim").addEventListener("click", closeDrawer);

@@ -77,5 +77,12 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 - **Fix / Action Taken**: `darkMode: 'class'`, FOUC-prevention script, `localStorage.recoverpay-theme`, light glass `bg-white/80` / `#f8fafc`. Verified toggle strings and config in served HTML.
 - **Guardrail Added**: Default theme remains dark (TEST MODE demo look) until the user switches.
 
+### [Entry #11] Dashboard search and multi-filters
+- **Status**: 🟢 RESOLVED
+- **Component**: Frontend dashboard
+- **What happened**: Filters are client-side on the already-masked `/api/v1/transactions` list (no extra backend query API).
+- **Fix / Action Taken**: Combined search + amount + status + region in `filteredTxns()`. Empty state distinguishes “no data” vs “no matches”.
+- **Guardrail Added**: High-value approve still only for `FLAGGED_FOR_APPROVAL`.
+
 ---
 *(Future debugging entries will be appended automatically by coding agents during build cycles)*

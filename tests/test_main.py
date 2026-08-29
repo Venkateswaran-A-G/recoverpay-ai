@@ -99,6 +99,14 @@ def test_dashboard_served_at_root(client):
     assert "recoverpay-theme" in response.text
     assert "☀️ Light" in response.text
     assert "🌙 Dark" in response.text
+    assert "searchInput" in response.text
+    assert "All Amounts" in response.text
+    assert "Under ₹2,000" in response.text
+    assert "All Statuses" in response.text
+    assert "Flagged" in response.text
+    assert "All Regions" in response.text
+    assert "Karnataka (Kanglish)" in response.text
+    assert "filteredTxns" in response.text
 
 
 def test_webhook_rejects_invalid_hmac(client):
