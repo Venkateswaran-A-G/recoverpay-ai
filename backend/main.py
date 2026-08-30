@@ -64,6 +64,78 @@ SIM_NAMES = {
 OPT_OUT_SIM_PHONE = "+919800000001"
 FRONTEND_INDEX = Path(__file__).resolve().parent.parent / "frontend" / "index.html"
 
+# ── Bank outage detection ──────────────────────────────────────────────────────
+BANK_NAMES = ("SBI", "HDFC", "ICICI", "Axis", "Kotak")
+_BANK_KEYWORDS: dict[str, list[str]] = {
+    "SBI": ["sbi", "state bank", "statebank"],
+    "HDFC": ["hdfc"],
+    "ICICI": ["icici"],
+    "Axis": ["axis"],
+    "Kotak": ["kotak"],
+}
+# Manual overrides set by the simulator endpoint (in-process state, demo only)
+_BANK_OUTAGE_OVERRIDES: dict[str, bool] = {}
+
+# Bank-tagged simulator failure reasons (embeds bank name for health calculation)
+SIM_FAILURE_REASONS = [
+    ("BAD_REQUEST_PAYMENT_TIMED_OUT", "SBI issuer bank gateway did not respond within 30 seconds"),
+    ("INSUFFICIENT_FUNDS", "HDFC account balance insufficient for this transaction"),
+    ("AUTHENTICATION_FAILED", "ICICI 3DS OTP verification failed on authorization"),
+    ("EXPIRED_CARD", "Axis Bank card has expired — update details in banking app"),
+    ("GATEWAY_ERROR", "Kotak Mahindra bank payment gateway connection error"),
+    ("BAD_REQUEST_PAYMENT_TIMED_OUT", "SBI core banking server timeout — no response from issuer"),
+    ("AUTHENTICATION_FAILED", "SBI UPI PIN authentication rejected by issuer"),
+]
+
+
+def detect_bank(failure_code: str, failure_reason: str) -> str | None:
+    """Return the bank name if it can be identified from failure text, else None."""
+    text = f"{failure_code} {failure_reason}".lower()
+    for bank, keywords in _BANK_KEYWORDS.items():
+        if any(k in text for k in keywords):
+            return bank
+    return None
+
+
+def compute_bank_health(db: Session) -> dict[str, dict[str, Any]]:
+    """Calculate real-time health for each major Indian bank from recent failures."""
+    recent = (
+        db.query(Transaction)
+        .order_by(Transaction.created_at.desc())
+        .limit(50)
+        .all()
+    )
+    total = len(recent) or 1
+    counts: dict[str, int] = {b: 0 for b in BANK_NAMES}
+    for txn in recent:
+        bank = detect_bank(txn.failure_code or "", txn.failure_reason or "")
+        if bank and bank in counts:
+            counts[bank] += 1
+
+    health: dict[str, dict[str, Any]] = {}
+    for bank in BANK_NAMES:
+        count = counts[bank]
+        rate = round((count / total) * 100, 1)
+        # Degraded if manually overridden OR natural rate ≥ 30 %
+        override_on = _BANK_OUTAGE_OVERRIDES.get(bank, False)
+        degraded = override_on or rate >= 30.0
+        display_rate = 42.0 if override_on and rate < 30 else rate
+        health[bank] = {
+            "bank": bank,
+            "status": "DEGRADED" if degraded else "OPERATIONAL",
+            "failure_rate_pct": display_rate,
+            "failure_count": count,
+            "label": (
+                f"🔴 {bank} Degraded ({display_rate:.0f}% Failure Spike)"
+                if degraded else f"🟢 {bank} Operational"
+            ),
+            "message": (
+                f"{bank} bank servers are currently slow. Link remains valid for 2 hours."
+                if degraded else None
+            ),
+        }
+    return health
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -193,7 +265,12 @@ def compute_metrics(db: Session) -> DashboardMetrics:
     )
 
 
-def dispatch_recovery(db: Session, txn: Transaction) -> tuple[str | None, bool]:
+def dispatch_recovery(
+    db: Session,
+    txn: Transaction,
+    *,
+    bank_outage_note: str | None = None,
+) -> tuple[str | None, bool]:
     """Generate link, run regional agent, log dispatch. Never called for blocked txns."""
     started = time.perf_counter()
     link = generate_payment_link(
@@ -262,7 +339,9 @@ def dispatch_recovery(db: Session, txn: Transaction) -> tuple[str | None, bool]:
     # ── Green API WhatsApp outreach (fire-and-forget) ─────────────────────────
     personal_wa = os.getenv("MY_PERSONAL_WHATSAPP", "").strip()
     if personal_wa:
-        rich_msg = build_rich_whatsapp_message(request, diagnostic.language_register)
+        rich_msg = build_rich_whatsapp_message(
+            request, diagnostic.language_register, bank_outage_note=bank_outage_note
+        )
         send_green_api_message(personal_wa, rich_msg)
     # ─────────────────────────────────────────────────────────────────────────
 
@@ -358,7 +437,37 @@ def process_failure_event(
             requires_human_approval=True,
         )
 
-    language_register, _ = dispatch_recovery(db, txn)
+    # ── Bank outage check ─────────────────────────────────────────────────────
+    bank_health = compute_bank_health(db)
+    detected_bank = detect_bank(failure_code, failure_reason or "")
+    bank_outage_note: str | None = None
+    if detected_bank:
+        bh = bank_health.get(detected_bank, {})
+        if bh.get("status") == "DEGRADED":
+            txn.recovery_status = RecoveryStatus.BANK_OUTAGE_HOLD.value
+            write_audit(
+                db,
+                transaction_id=txn.id,
+                step_name="BANK_OUTAGE_HOLD",
+                step_status=AuditStepStatus.WARNING.value,
+                raw_payload={
+                    "bank": detected_bank,
+                    "failure_rate_pct": bh.get("failure_rate_pct"),
+                    "note": "Recovery outreach paused — bank servers degraded",
+                },
+            )
+            db.commit()
+            return WebhookIngestResponse(
+                accepted=True,
+                transaction_id=txn.id,
+                recovery_status=txn.recovery_status,
+                requires_human_approval=False,
+            )
+        if bh.get("failure_count", 0) > 0:
+            bank_outage_note = bh.get("message")
+    # ─────────────────────────────────────────────────────────────────────────
+
+    language_register, _ = dispatch_recovery(db, txn, bank_outage_note=bank_outage_note)
     db.commit()
     return WebhookIngestResponse(
         accepted=True,
@@ -579,8 +688,8 @@ def run_batch_simulator(
             customer_email=f"{name.lower()}@example.com",
             amount=amount,
             currency="INR",
-            failure_code=SIM_FAILURES[index % len(SIM_FAILURES)],
-            failure_reason=f"Simulated {SIM_FAILURES[index % len(SIM_FAILURES)]} from {state}",
+            failure_code=SIM_FAILURE_REASONS[index % len(SIM_FAILURE_REASONS)][0],
+            failure_reason=SIM_FAILURE_REASONS[index % len(SIM_FAILURE_REASONS)][1],
             customer_state=state,
             retry_count=retry_count,
             raw_payload={"simulator": True, "state": state, "index": index},
@@ -613,6 +722,32 @@ def run_batch_simulator(
         states=list(SIM_STATES),
         metrics=compute_metrics(db),
     )
+
+
+@app.get("/api/v1/bank-health", tags=["monitoring"])
+def get_bank_health(
+    db: Session = Depends(get_db),
+    x_api_key: str | None = Header(default=None, alias="X-API-KEY"),
+) -> dict[str, Any]:
+    """Return real-time health status for major Indian core banks."""
+    _dashboard_authorized(x_api_key)
+    return compute_bank_health(db)
+
+
+@app.post("/api/v1/simulator/bank-outage", tags=["simulator"])
+def simulate_bank_outage(
+    bank: str = Query(default="SBI", description="Bank name to toggle outage for"),
+    active: bool = Query(default=True, description="True to activate outage, False to clear"),
+    x_api_key: str | None = Header(default=None, alias="X-API-KEY"),
+) -> dict[str, Any]:
+    """Manually toggle a bank outage override for demo purposes."""
+    _dashboard_authorized(x_api_key)
+    bank_key = bank.strip()
+    if active:
+        _BANK_OUTAGE_OVERRIDES[bank_key] = True
+    else:
+        _BANK_OUTAGE_OVERRIDES.pop(bank_key, None)
+    return {"bank": bank_key, "outage_active": active, "message": f"{bank_key} outage {'activated' if active else 'cleared'}"}
 
 
 @app.post("/api/v1/webhooks/whatsapp", tags=["webhooks"])

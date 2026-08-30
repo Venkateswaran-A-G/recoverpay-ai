@@ -121,6 +121,19 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
 
 ---
 
+### [Prompt #20] - Live India Downstream Bank Outage Map
+- **Timestamp**: 2026-08-30 / Bank health monitoring feature
+- **Exact User Prompt**: "Implement Live India Downstream Bank Outage Map: bank health endpoint, failure rate detection, BANK_OUTAGE_HOLD status, bank outage note in WhatsApp, 3D glassmorphism bank health banner."
+- **Files Created / Modified**:
+  - `backend/schemas.py` (added `BANK_OUTAGE_HOLD`, `RETRY_SCHEDULED_POST_BANK_RECOVERY` to `RecoveryStatus`)
+  - `backend/main.py` (added `_BANK_KEYWORDS`, `_BANK_OUTAGE_OVERRIDES`, `SIM_FAILURE_REASONS`, `detect_bank()`, `compute_bank_health()`; bank outage hold check in `process_failure_event()`; `GET /api/v1/bank-health`; `POST /api/v1/simulator/bank-outage`)
+  - `backend/agent.py` (`build_rich_whatsapp_message()` accepts `bank_outage_note` parameter)
+  - `frontend/index.html` (bank health banner with live status pills, "Simulate SBI Outage" button, `BANK_OUTAGE_HOLD` filter chip, `loadBankHealth()` JS)
+  - `PROMPT_LOG.md`
+- **Actions Executed**: `GET /api/v1/bank-health` verified → all 5 banks operational. `pytest` → 30 passed. Committed and pushed.
+
+---
+
 ### [Prompt #19] - Rich structured Green API WhatsApp messages
 - **Timestamp**: 2026-08-30 / Green API message formatting
 - **Exact User Prompt**: "Verify and update backend/agent.py so that every WhatsApp message sent via Green API explicitly formats and includes: plain failure cause, actionable fix tip, regional dialect, 1-click Razorpay link."

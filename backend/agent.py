@@ -282,6 +282,8 @@ def render_fallback_message(
 def build_rich_whatsapp_message(
     request: RecoveryCopyRequest,
     register: LanguageRegister,
+    *,
+    bank_outage_note: str | None = None,
 ) -> str:
     """Build the structured 3-line WhatsApp message sent via Green API.
 
@@ -290,6 +292,7 @@ def build_rich_whatsapp_message(
         {Greeting} {name}! {Poss} {merchant} order (₹{amount}) payment {cause}.
         💡 Tip: {actionable tip}
         🔗 1-Click Payment Link: {link}
+        ℹ️ Note: {bank outage note}   ← only if bank is degraded
 
     All four elements — regional greeting, plain failure cause, actionable tip,
     and Razorpay payment link — are always present regardless of failure type.
@@ -306,11 +309,14 @@ def build_rich_whatsapp_message(
     cause = cause_map.get(register, cause_map[LanguageRegister.ENGLISH])
     tip = _ACTION_TIPS.get(failure_cat, _ACTION_TIPS["USER_DROPOFF"])
 
-    return (
+    message = (
         f"{greeting} {name}! {possessive} {merchant} order (₹{amount}) payment {cause}.\n"
         f"💡 Tip: {tip}\n"
         f"🔗 1-Click Payment Link: {request.payment_link}"
     )
+    if bank_outage_note:
+        message += f"\nℹ️ Note: {bank_outage_note}"
+    return message
 
 
 def fallback_diagnostic(
