@@ -347,6 +347,44 @@ def _is_placeholder_twilio(value: str | None) -> bool:
     return any(m in lowered for m in _TWILIO_PLACEHOLDER_MARKERS)
 
 
+def send_whapi_whatsapp(phone: str, message_text: str) -> bool:
+    """Send a free-form WhatsApp message via Whapi Cloud.
+
+    Environment variables required:
+        WHAPI_TOKEN – Bearer token from gate.whapi.cloud
+        WHAPI_URL   – Base URL (default: https://gate.whapi.cloud/)
+    """
+    import sys
+
+    token = os.getenv("WHAPI_TOKEN", "").strip()
+    base_url = os.getenv("WHAPI_URL", "https://gate.whapi.cloud/").rstrip("/")
+    if not token or token in ("your_whapi_token", "changeme"):
+        print("[Whapi] WHAPI_TOKEN not configured; skipping.", file=sys.stderr)
+        return False
+
+    # Normalise: strip whatsapp: prefix and +, keep digits only with country code
+    clean_phone = phone.replace("whatsapp:", "").lstrip("+")
+    try:
+        import requests as _requests  # type: ignore[import-untyped]
+
+        resp = _requests.post(
+            f"{base_url}/messages/text",
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json", "Accept": "application/json"},
+            json={"to": clean_phone, "body": message_text},
+            timeout=10,
+        )
+        data = resp.json() if resp.content else {}
+        if resp.status_code == 200 and data.get("sent"):
+            msg_id = data.get("message", {}).get("id", "?")
+            print(f"[Whapi] Sent → id={msg_id} to={clean_phone}", file=sys.stderr)
+            return True
+        print(f"[Whapi] Send failed: HTTP {resp.status_code} {resp.text[:120]}", file=sys.stderr)
+        return False
+    except Exception as exc:  # noqa: BLE001
+        print(f"[Whapi] Exception: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return False
+
+
 def send_callmebot_whatsapp(phone: str, message_text: str) -> bool:
     """Send a free-form WhatsApp message via CallMeBot (free, no templates needed).
 
@@ -394,6 +432,11 @@ def send_live_whatsapp_message(to_phone: str, message_text: str) -> bool:
     if _test_mode_enabled():
         print(f"[WhatsApp] TEST_MODE=true → skipping live send to {to_phone}", file=sys.stderr)
         return False
+
+    # ── Whapi Cloud (best: free-form, no templates) ───────────────────────
+    whapi_token = os.getenv("WHAPI_TOKEN", "").strip()
+    if whapi_token and whapi_token not in ("your_whapi_token", "changeme"):
+        return send_whapi_whatsapp(to_phone, message_text)
 
     # ── CallMeBot (free-form, no template required) ───────────────────────
     callmebot_key = os.getenv("CALLMEBOT_API_KEY", "").strip()
