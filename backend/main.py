@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from sqlalchemy.orm import Session
 
-from backend.agent import diagnose_failure, send_live_whatsapp_message
+from backend.agent import diagnose_failure
 from backend.database import get_db, init_db
 from backend.guardrails import evaluate_guardrails
 from backend.models import AuditLog, OptOutRegistry, Transaction
@@ -255,22 +255,8 @@ def dispatch_recovery(db: Session, txn: Transaction) -> tuple[str | None, bool]:
         },
     )
 
-    # ── Commit DB changes BEFORE external HTTP calls ─────────────────────────
-    # SQLite only allows one writer. Whapi calls can take up to 10s on timeout.
-    # Committing here releases the write lock so concurrent requests don't block.
+    # ── Commit DB changes ─────────────────────────────────────────────────────
     db.commit()
-    # ─────────────────────────────────────────────────────────────────────────
-
-    # ── Live WhatsApp (fire-and-forget) ───────────────────────────────────────
-    personal_wa = os.getenv("MY_PERSONAL_WHATSAPP", "")
-    target_phones: list[str] = []
-    if txn.customer_phone and txn.customer_phone.strip():
-        target_phones.append(txn.customer_phone.strip())
-    if personal_wa and personal_wa.strip():
-        target_phones.append(personal_wa.strip())
-
-    for phone in target_phones:
-        send_live_whatsapp_message(phone, diagnostic.hinglish_message)
     # ─────────────────────────────────────────────────────────────────────────
 
     return diagnostic.language_register.value, diagnostic.used_fallback
