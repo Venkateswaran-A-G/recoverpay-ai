@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from sqlalchemy.orm import Session
 
-from backend.agent import diagnose_failure
+from backend.agent import diagnose_failure, send_green_api_message
 from backend.database import get_db, init_db
 from backend.guardrails import evaluate_guardrails
 from backend.models import AuditLog, OptOutRegistry, Transaction
@@ -257,6 +257,12 @@ def dispatch_recovery(db: Session, txn: Transaction) -> tuple[str | None, bool]:
 
     # ── Commit DB changes ─────────────────────────────────────────────────────
     db.commit()
+    # ─────────────────────────────────────────────────────────────────────────
+
+    # ── Green API WhatsApp outreach (fire-and-forget) ─────────────────────────
+    personal_wa = os.getenv("MY_PERSONAL_WHATSAPP", "").strip()
+    if personal_wa:
+        send_green_api_message(personal_wa, diagnostic.hinglish_message)
     # ─────────────────────────────────────────────────────────────────────────
 
     return diagnostic.language_register.value, diagnostic.used_fallback

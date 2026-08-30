@@ -121,6 +121,19 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
 
 ---
 
+### [Prompt #18] - Green API WhatsApp Integration
+- **Timestamp**: 2026-08-30 / Green API live messaging
+- **Exact User Prompt**: "Please integrate Green API into backend/agent.py. Add send_green_api_message(). In backend/main.py, whenever a webhook payment failure is processed or simulation runs, call send_green_api_message to send the regional recovery message to MY_PERSONAL_WHATSAPP."
+- **Files Created / Modified**:
+  - `backend/agent.py` (added `send_green_api_message()` — POST to `api.green-api.com/waInstance{ID}/sendMessage/{TOKEN}`)
+  - `backend/main.py` (imported `send_green_api_message`; called after DB commit in `dispatch_recovery()`)
+  - `.env` (added `GREEN_API_INSTANCE_ID`, `GREEN_API_TOKEN`, `MY_PERSONAL_WHATSAPP=919148001667`, `TEST_MODE=false`)
+  - `.env.example` (added Green API vars)
+  - `PROMPT_LOG.md`
+- **Actions Executed**: Live test → `idMessage=3EB0DBF1A8BC033F9A25CC` delivered to `919148001667@c.us`. Fixed phone number format (needs 91 country code prefix). `pytest` → 30 passed. Committed and pushed.
+
+---
+
 ### [Prompt #17] - Remove WhatsApp Phone Simulator
 - **Timestamp**: 2026-08-30 / Dashboard cleanup
 - **Exact User Prompt**: "Please update frontend/index.html to completely remove the Built-in Web WhatsApp Phone Simulator modal/drawer component and its related JS code. Keep the clean dashboard layout focused on: RazorpayX Header, Metric Cards, Search & Filters, Regional Table, and Audit Drawer."

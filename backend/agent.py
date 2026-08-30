@@ -337,6 +337,57 @@ def diagnose_failure(
         )
 
 
+def send_green_api_message(to_phone: str, message_text: str) -> bool:
+    """Send a WhatsApp message via Green API (https://green-api.com).
+
+    Free tier — no templates required, free-form messages, works with
+    any WhatsApp number the instance is linked to.
+
+    Environment variables required:
+        GREEN_API_INSTANCE_ID – e.g. "710722723381"
+        GREEN_API_TOKEN       – API token from Green API console
+        MY_PERSONAL_WHATSAPP  – destination phone in E.164 digits e.g. "9148001667"
+    """
+    import sys
+
+    if _test_mode_enabled():
+        print("[GreenAPI] TEST_MODE=true → skipping live send.", file=sys.stderr)
+        return False
+
+    instance_id = os.getenv("GREEN_API_INSTANCE_ID", "").strip()
+    token = os.getenv("GREEN_API_TOKEN", "").strip()
+    if not instance_id or not token:
+        print("[GreenAPI] GREEN_API_INSTANCE_ID / GREEN_API_TOKEN not set; skipping.", file=sys.stderr)
+        return False
+
+    # Normalise phone: strip whatsapp:/+/spaces, keep digits only
+    clean = re.sub(r"\D", "", to_phone.replace("whatsapp:", ""))
+    if not clean:
+        print("[GreenAPI] Empty phone number; skipping.", file=sys.stderr)
+        return False
+
+    chat_id = f"{clean}@c.us"
+    url = f"https://api.green-api.com/waInstance{instance_id}/sendMessage/{token}"
+
+    try:
+        import requests as _requests  # type: ignore[import-untyped]
+
+        resp = _requests.post(
+            url,
+            json={"chatId": chat_id, "message": message_text},
+            timeout=10,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            print(f"[GreenAPI] Sent → idMessage={data.get('idMessage','?')} to={chat_id}", file=sys.stderr)
+            return True
+        print(f"[GreenAPI] Send failed: HTTP {resp.status_code} {resp.text[:120]}", file=sys.stderr)
+        return False
+    except Exception as exc:  # noqa: BLE001
+        print(f"[GreenAPI] Exception: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return False
+
+
 if __name__ == "__main__":
     import sys
 
