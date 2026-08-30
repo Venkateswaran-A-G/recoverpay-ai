@@ -282,11 +282,12 @@ def test_voice_approve_and_call_high_value(client):
     )
     assert approve.status_code == 200
     data = approve.json()
-    assert data["recovery_status"] == RecoveryStatus.VOICE_CALL_DISPATCHED.value
+    assert data["recovery_status"] == RecoveryStatus.RECOVERED.value
 
     detail = test_client.get(f"/api/v1/audit-logs/{txn_id}", headers={"X-API-KEY": "demo_dashboard_key"})
     steps = {row["step_name"] for row in detail.json()["audit_logs"]}
     assert "REAL_PHONE_VOICE_CALL_PLACED" in steps
+    assert "HIGH_VALUE_VOICE_RECOVERY_CONFIRMED" in steps
 
 
 def test_voice_call_not_auto_dialed_and_can_be_declined(client):
@@ -325,6 +326,51 @@ def test_batch_simulator_exactly_one_voice_permission_txn(client):
     assert float(over_20k[0]["amount"]) in {25000.0, 35000.0, 45000.0}
     assert over_20k[0]["recovery_status"] == RecoveryStatus.REQUIRES_VOICE_CALL_PERMISSION.value
     assert all(t["recovery_status"] != RecoveryStatus.VOICE_CALL_DISPATCHED.value for t in txns)
+
+
+def test_batch_simulator_recovers_about_72_percent_under_5k(client):
+    test_client, _ = client
+    batch = test_client.post(
+        "/api/v1/simulator/run-batch?count=20",
+        headers={"X-API-KEY": "demo_dashboard_key"},
+    )
+    assert batch.status_code == 200
+    txns = test_client.get(
+        "/api/v1/transactions?limit=200",
+        headers={"X-API-KEY": "demo_dashboard_key"},
+    ).json()
+    under_5k = [t for t in txns if float(t["amount"]) < 5000]
+    recovered = [t for t in under_5k if t["recovery_status"] == RecoveryStatus.RECOVERED.value]
+    dispatched = [t for t in under_5k if t["recovery_status"] == RecoveryStatus.RECOVERY_DISPATCHED.value]
+    convertible = recovered + dispatched
+    assert convertible
+    share = len(recovered) / len(convertible)
+    assert 0.68 <= share <= 0.80
+    over_20k = [t for t in txns if float(t["amount"]) > 20000]
+    assert len(over_20k) == 1
+    assert over_20k[0]["recovery_status"] == RecoveryStatus.REQUIRES_VOICE_CALL_PERMISSION.value
+    metrics = test_client.get("/api/v1/dashboard/metrics", headers={"X-API-KEY": "demo_dashboard_key"}).json()
+    assert 68.0 <= metrics["recovery_rate_percent"] <= 75.0
+    assert metrics["recovery_rate_percentage"] == metrics["recovery_rate_percent"]
+
+
+def test_whatsapp_payment_link_click_marks_recovered(client):
+    test_client, _ = client
+    payload = _webhook_body(entity_overrides={"id": "pay_click"})
+    body = json.dumps(payload).encode()
+    ingest = test_client.post(
+        "/api/v1/webhooks/razorpay",
+        content=body,
+        headers={"Content-Type": "application/json", "X-Razorpay-Signature": _sign(body)},
+    )
+    txn_id = ingest.json()["transaction_id"]
+    assert ingest.json()["recovery_status"] == RecoveryStatus.RECOVERY_DISPATCHED.value
+    clicked = test_client.get(f"/api/v1/recovery/pay/{txn_id}")
+    assert clicked.status_code == 200
+    detail = test_client.get(f"/api/v1/audit-logs/{txn_id}", headers={"X-API-KEY": "demo_dashboard_key"})
+    assert detail.json()["transaction"]["recovery_status"] == RecoveryStatus.RECOVERED.value
+    steps = {row["step_name"] for row in detail.json()["audit_logs"]}
+    assert "PAYMENT_EVIDENCE_CONFIRMED" in steps
 
 
 def _paid_body(txn_id: str, payment_id: str = "pay_recovered_1") -> dict:

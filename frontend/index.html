@@ -324,7 +324,7 @@
       { key: "GUARDRAIL_CHECK", label: "Guardrails", match: ["GUARDRAIL_CHECK"] },
       { key: "LLM", label: "Regional LLM Diagnosis", match: ["LLM_DIAGNOSIS", "LLM_FALLBACK_TRIGGERED"] },
       { key: "DISPATCH", label: "Dispatch", match: ["DISPATCH", "PAYMENT_LINK_GEN"] },
-      { key: "VOICE", label: "Voice Call", match: ["REAL_PHONE_VOICE_CALL_PLACED", "VOICE_CALL_PERMISSION_REQUIRED", "VOICE_CALL_DECLINED"] },
+      { key: "VOICE", label: "Voice Call", match: ["REAL_PHONE_VOICE_CALL_PLACED", "VOICE_CALL_PERMISSION_REQUIRED", "VOICE_CALL_DECLINED", "HIGH_VALUE_VOICE_RECOVERY_CONFIRMED"] },
       { key: "PAID", label: "Payment Evidence", match: ["PAYMENT_EVIDENCE_CONFIRMED"] },
     ];
     const PILL = {
@@ -597,7 +597,7 @@
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || "Voice call failed");
-        toast("📞 Call placed · " + (data.message || "VOICE_CALL_DISPATCHED"));
+        toast("📞 Call placed · recovered · " + (data.message || "RECOVERED"));
         await refresh();
       } catch (err) {
         toast(String(err.message || err));

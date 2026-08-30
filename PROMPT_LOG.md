@@ -327,3 +327,16 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `recoverpay.db` (local, gitignored) — deleted 358 transactions and 1368 audit logs
   - `PROMPT_LOG.md`, `BUILD_LOG.md`
 - **Actions Executed**: `DELETE FROM audit_logs` then `DELETE FROM transactions`. Metrics API now returns ₹0.00 / 0 transactions.
+
+---
+
+### [Prompt #31] - Recovered status on payment click and voice completion
+- **Timestamp**: 2026-08-30 / Recovery conversion
+- **Exact User Prompt**: "Please fix the payment completion triggers and metrics calculation in backend/main.py: 1. WhatsApp Payment Link Click / Paid Webhook Transition to RECOVERED: When a customer clicks the WhatsApp payment link or when POST /api/v1/webhooks/razorpay-paid is called, update the transaction status from RECOVERY_DISPATCHED to RECOVERED. Add audit log entry: PAYMENT_EVIDENCE_CONFIRMED. 2. High-Value AI Voice Call (>₹20,000) Completion Transition to RECOVERED: In endpoint POST /api/v1/voice/approve-and-call/{id}: When the merchant clicks 'Accept & Place AI Voice Call' AND the call is placed/answered, update the transaction status from REQUIRES_VOICE_CALL_PERMISSION directly to RECOVERED. Add audit log entry: HIGH_VALUE_VOICE_RECOVERY_CONFIRMED. 3. Batch Simulator Logic: For simulated transactions under ₹5,000: set ~72% to RECOVERED and ~28% to RECOVERY_DISPATCHED. Keep EXACTLY ONE transaction per batch > ₹20,000 set to REQUIRES_VOICE_CALL_PERMISSION. 4. Metrics Calculation: Calculate recovery_rate_percentage accurately so it reflects a healthy 68.0% - 75.0% conversion rate. Test by running uvicorn backend.main:app --reload and opening http://localhost:8000. Log this change in PROMPT_LOG.md and git commit with message 'fix: trigger RECOVERED status on whatsapp payment link click and voice call completion' and push to main."
+- **Files Created / Modified**:
+  - `backend/schemas.py` — `HIGH_VALUE_VOICE_RECOVERY_CONFIRMED`, `recovery_rate_percentage`
+  - `backend/main.py` — click URL + GET `/api/v1/recovery/pay/{id}`, voice → RECOVERED, 72% sim mix, conversion-rate metrics
+  - `frontend/index.html` — audit pipeline + voice toast
+  - `tests/test_main.py` — click, 72% mix, voice recovered
+  - `PROMPT_LOG.md`, `BUILD_LOG.md`
+- **Actions Executed**: Live `POST /api/v1/simulator/run-batch?count=20` on uvicorn `--reload` returned recovery_rate 70.0%. Pytest run, then committed and pushed to `origin/main`.

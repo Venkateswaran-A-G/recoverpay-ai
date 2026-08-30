@@ -47,6 +47,7 @@ class AuditStepName(str, Enum):
     VOICE_CALL_PERMISSION_REQUIRED = "VOICE_CALL_PERMISSION_REQUIRED"
     VOICE_CALL_DECLINED = "VOICE_CALL_DECLINED"
     PAYMENT_EVIDENCE_CONFIRMED = "PAYMENT_EVIDENCE_CONFIRMED"
+    HIGH_VALUE_VOICE_RECOVERY_CONFIRMED = "HIGH_VALUE_VOICE_RECOVERY_CONFIRMED"
 
 
 class AuditStepStatus(str, Enum):
@@ -261,6 +262,7 @@ class DashboardMetrics(BaseModel):
     total_failed_volume: Decimal = Decimal("0.00")
     recovered_revenue: Decimal = Decimal("0.00")
     recovery_rate_percent: float = 0.0
+    recovery_rate_percentage: float = 0.0
     outreach_cost: Decimal = Decimal("0.00")
     net_roi: float = 0.0
     total_transactions: int = 0

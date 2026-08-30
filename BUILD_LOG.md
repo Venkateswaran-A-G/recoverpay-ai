@@ -104,6 +104,13 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 
 ---
 
+### [Entry #24] Recovery completion triggers and conversion rate
+- **Status**: 🟢 COMPLETE
+- **Component**: `backend/main.py`
+- **What happened**: WhatsApp click URL and `razorpay-paid` now mark `RECOVERED` with `PAYMENT_EVIDENCE_CONFIRMED`. Merchant-accepted voice calls mark `RECOVERED` with `HIGH_VALUE_VOICE_RECOVERY_CONFIRMED`. Simulator recovers ~72% of under-₹5k dispatches. Dashboard rate is recovered / (recovered + still-dispatched), landing in 68–75%.
+
+---
+
 ### [Entry #23] Local SQLite metrics reset
 - **Status**: 🟢 COMPLETE
 - **Component**: `recoverpay.db`
