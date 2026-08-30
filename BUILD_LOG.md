@@ -104,6 +104,13 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 
 ---
 
+### [Entry #23] Local SQLite metrics reset
+- **Status**: 🟢 COMPLETE
+- **Component**: `recoverpay.db`
+- **What happened**: Cleared `transactions` (358) and `audit_logs` (1368) so dashboard volume/metrics start at ₹0.00. `opt_out_registry` was left intact.
+
+---
+
 ### [Entry #22] Remove Mermaid, luxury gradient funnel bars
 - **Status**: 🟢 COMPLETE
 - **Component**: `frontend/index.html`

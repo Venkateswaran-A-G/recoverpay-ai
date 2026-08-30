@@ -317,3 +317,13 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `tests/test_main.py` — asserts gradient bars and no Mermaid
   - `PROMPT_LOG.md`, `BUILD_LOG.md`
 - **Actions Executed**: `pytest`. Verified dashboard at localhost:8000. Committed and pushed.
+
+---
+
+### [Prompt #30] - Reset recoverpay.db metrics
+- **Timestamp**: 2026-08-30 / Local DB reset
+- **Exact User Prompt**: "Please clear all rows from the Transaction and AuditLog tables in recoverpay.db so all metrics start fresh at ₹ 0.00."
+- **Files Created / Modified**:
+  - `recoverpay.db` (local, gitignored) — deleted 358 transactions and 1368 audit logs
+  - `PROMPT_LOG.md`, `BUILD_LOG.md`
+- **Actions Executed**: `DELETE FROM audit_logs` then `DELETE FROM transactions`. Metrics API now returns ₹0.00 / 0 transactions.
