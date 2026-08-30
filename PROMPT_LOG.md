@@ -306,3 +306,14 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `tests/test_main.py` — asserts Mermaid CDN and flowchart LR source
   - `PROMPT_LOG.md`, `BUILD_LOG.md`
 - **Actions Executed**: `pytest`. Restarted uvicorn with --reload. Committed and pushed.
+
+---
+
+### [Prompt #29] - Remove Mermaid, luxury gradient progress bars
+- **Timestamp**: 2026-08-30 / Funnel UI
+- **Exact User Prompt**: "Please completely remove all Mermaid.js scripts, divs, and flowchart code from frontend/index.html, and replace them with ultra-sleek, luxury gradient progress bars for both Stage-by-Stage Recovery Conversion Funnel and Failure Reason Breakdown. Glass tracks, yield pills, 700ms transitions. Commit 'refactor: remove mermaid and replace with luxury gradient progress bars' and push to main."
+- **Files Created / Modified**:
+  - `frontend/index.html` — removed Mermaid CDN/JS; luxury gradient bars + yield pills
+  - `tests/test_main.py` — asserts gradient bars and no Mermaid
+  - `PROMPT_LOG.md`, `BUILD_LOG.md`
+- **Actions Executed**: `pytest`. Verified dashboard at localhost:8000. Committed and pushed.

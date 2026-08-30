@@ -114,9 +114,10 @@ def test_dashboard_served_at_root(client):
     assert "Failure Reason Breakdown" in response.text
     assert "Human Review Queue" in response.text
     assert "TEMPORARY_BANK_DEGRADATION" in response.text
-    assert "cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" in response.text
-    assert "mermaid.initialize" in response.text
-    assert "flowchart LR" in response.text
+    assert "bg-gradient-to-r from-rose-600 via-rose-500 to-pink-500" in response.text
+    assert "luxury-fill" in response.text
+    assert "% yield" in response.text
+    assert "mermaid" not in response.text.lower()
 
 
 def test_webhook_rejects_invalid_hmac(client):

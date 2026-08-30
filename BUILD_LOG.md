@@ -104,6 +104,13 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 
 ---
 
+### [Entry #22] Remove Mermaid, luxury gradient funnel bars
+- **Status**: 🟢 COMPLETE
+- **Component**: `frontend/index.html`
+- **What happened**: Mermaid.js CDN, initialize, and flowchart renderers removed. Funnel and failure breakdown now use luxury Tailwind gradient bars, glass tracks, and conversion yield pills.
+
+---
+
 ### [Entry #21] Mermaid.js funnel and breakdown diagrams
 - **Status**: 🟢 COMPLETE
 - **Component**: `frontend/index.html`
