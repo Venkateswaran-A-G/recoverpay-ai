@@ -212,16 +212,16 @@
   </aside>
   <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 glass rounded-lg px-3.5 py-2.5 text-xs">Toast</div>
 
-  <!-- ── Floating Bank Health Widget (bottom-right, theme-aware) ───────── -->
-  <div id="bankWidget" class="fixed right-0 bottom-6 z-[45] flex items-end">
+  <!-- ── Floating Bank Health Widget — tab flush to viewport right edge ── -->
+  <div id="bankWidget" class="fixed right-0 bottom-6 z-[45]">
     <button id="bankWidgetTab" type="button"
-      class="flex flex-col items-center gap-1.5 rounded-l-xl px-2 py-3.5 text-[9px] font-semibold glass border-r-0 hover:bg-white dark:hover:bg-slate-800 transition-colors"
+      class="relative z-10 flex flex-col items-center gap-1.5 rounded-l-xl px-2 py-3.5 text-[9px] font-semibold glass border-r-0 hover:bg-white dark:hover:bg-slate-800 transition-colors"
       title="Toggle Bank Health">
       <span class="text-base">🏦</span>
       <span style="writing-mode:vertical-lr;transform:rotate(180deg)" class="text-[8px] tracking-widest text-slate-500 dark:text-slate-400 uppercase">Bank</span>
     </button>
     <div id="bankWidgetPanel"
-      class="w-64 rounded-l-2xl glass border-r-0 p-4 shadow-lift transition-transform duration-300 translate-x-full"
+      class="hidden absolute bottom-0 right-full mr-1 w-64 rounded-2xl glass p-4 shadow-lift"
       style="max-height:420px;overflow-y:auto">
       <div class="flex items-center justify-between mb-3">
         <span class="text-[11px] font-semibold text-slate-800 dark:text-slate-200 tracking-wide">🏦 India Core Banks</span>
@@ -620,8 +620,7 @@
 
     $("bankWidgetTab").addEventListener("click", () => {
       _bankWidgetOpen = !_bankWidgetOpen;
-      $("bankWidgetPanel").classList.toggle("translate-x-full", !_bankWidgetOpen);
-      $("bankWidgetPanel").classList.toggle("translate-x-0",    _bankWidgetOpen);
+      $("bankWidgetPanel").classList.toggle("hidden", !_bankWidgetOpen);
     });
 
     $("bankRefreshBtn").addEventListener("click", async () => {
