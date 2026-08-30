@@ -104,9 +104,17 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 
 ---
 
-### [Entry #14] Twilio WhatsApp Sandbox integration
-- **Status**: 🟢 COMPLETE
+### [Entry #15] smoke_api.py missing X-API-KEY headers
+- **Status**: 🟢 RESOLVED
+- **Component**: `scripts/smoke_api.py`
+- **What happened**: All calls to protected endpoints (`/simulator/run-batch`, `/dashboard/metrics`, `/transactions`, `/audit-logs`) were missing the `X-API-KEY: demo_dashboard_key` header. They passed silently because `TEST_MODE=true` bypasses auth, but would fail in production validation.
+- **Fix**: Added `API_KEY` constant and `auth_headers` dict to all 4 protected endpoint calls.
+
+---
+
+### [Entry #14] Twilio WhatsApp Sandbox integration (added then removed)
+- **Status**: 🟡 REVERTED
 - **Component**: `backend/agent.py` + `backend/main.py`
-- **What happened**: New feature — send live WhatsApp recovery messages via Twilio Sandbox on every dispatched transaction.
-- **Implementation**: Added `send_live_whatsapp_message(to_phone, message_text)` with guards for `TEST_MODE=true` and placeholder credentials (returns `False`, logs to stderr). Wired into `dispatch_recovery()` in `main.py` after the DISPATCH audit step. Sends to both the customer's phone and `MY_PERSONAL_WHATSAPP` env var. Fire-and-forget: exceptions are caught and logged, never raised.
+- **What happened**: Twilio integrated and working — messages delivered to `+919148001667`. ContentSid template workaround required due to Twilio trial account restrictions. Subsequently, Whapi Cloud and CallMeBot were explored as alternatives. All messaging code removed at user request.
+- **Current state**: `send_live_whatsapp_message()` does NOT exist in `backend/agent.py`. No Twilio or third-party messaging vars in `.env`. The dispatch pipeline commits DB and returns without any external messaging call.
 - **Verified**: `pytest` → 30 passed. `requirements.txt` updated with `twilio==9.11.0`. `.env` / `.env.example` updated with Twilio vars.

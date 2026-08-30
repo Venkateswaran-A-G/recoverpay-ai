@@ -9,13 +9,15 @@ import json
 import httpx
 
 BASE = "http://127.0.0.1:8000"
+API_KEY = "demo_dashboard_key"
+AUTH_HEADERS = {"X-API-KEY": API_KEY}
 
 
 def main() -> None:
     health = httpx.get(f"{BASE}/health", timeout=10)
     print("health", health.status_code, health.json())
 
-    batch = httpx.post(f"{BASE}/api/v1/simulator/run-batch", params={"count": 10}, timeout=30)
+    batch = httpx.post(f"{BASE}/api/v1/simulator/run-batch", params={"count": 10}, headers=AUTH_HEADERS, timeout=30)
     data = batch.json()
     print(
         "batch",
@@ -23,7 +25,7 @@ def main() -> None:
         {k: data[k] for k in ("processed", "flagged_for_approval", "dispatched", "recovered", "opted_out", "states")},
     )
 
-    metrics = httpx.get(f"{BASE}/api/v1/dashboard/metrics", timeout=10)
+    metrics = httpx.get(f"{BASE}/api/v1/dashboard/metrics", headers=AUTH_HEADERS, timeout=10)
     print("metrics", metrics.status_code, metrics.json())
 
     bad = httpx.post(
@@ -70,10 +72,10 @@ def main() -> None:
     )
     print("good_hmac", ok.status_code, ok.json())
 
-    txns = httpx.get(f"{BASE}/api/v1/transactions", timeout=10)
+    txns = httpx.get(f"{BASE}/api/v1/transactions", headers=AUTH_HEADERS, timeout=10)
     print("txns", txns.status_code, "count", len(txns.json()), "phone", txns.json()[0]["customer_phone"])
 
-    detail = httpx.get(f"{BASE}/api/v1/audit-logs/{ok.json()['transaction_id']}", timeout=10)
+    detail = httpx.get(f"{BASE}/api/v1/audit-logs/{ok.json()['transaction_id']}", headers=AUTH_HEADERS, timeout=10)
     print("audit", detail.status_code, [n["step_name"] for n in detail.json()["execution_graph"]])
     print("OK")
 
