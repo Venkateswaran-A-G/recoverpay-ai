@@ -101,3 +101,12 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 
 ---
 *(Future debugging entries will be appended automatically by coding agents during build cycles)*
+
+---
+
+### [Entry #14] Twilio WhatsApp Sandbox integration
+- **Status**: 🟢 COMPLETE
+- **Component**: `backend/agent.py` + `backend/main.py`
+- **What happened**: New feature — send live WhatsApp recovery messages via Twilio Sandbox on every dispatched transaction.
+- **Implementation**: Added `send_live_whatsapp_message(to_phone, message_text)` with guards for `TEST_MODE=true` and placeholder credentials (returns `False`, logs to stderr). Wired into `dispatch_recovery()` in `main.py` after the DISPATCH audit step. Sends to both the customer's phone and `MY_PERSONAL_WHATSAPP` env var. Fire-and-forget: exceptions are caught and logged, never raised.
+- **Verified**: `pytest` → 30 passed. `requirements.txt` updated with `twilio==9.11.0`. `.env` / `.env.example` updated with Twilio vars.

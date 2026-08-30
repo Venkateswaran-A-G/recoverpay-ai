@@ -337,6 +337,68 @@ def diagnose_failure(
         )
 
 
+_TWILIO_PLACEHOLDER_MARKERS = ("ACxxxxxxxx", "your_twilio", "changeme", "xxx")
+
+
+def _is_placeholder_twilio(value: str | None) -> bool:
+    if not value or not value.strip():
+        return True
+    lowered = value.strip().lower()
+    return any(m in lowered for m in _TWILIO_PLACEHOLDER_MARKERS)
+
+
+def send_live_whatsapp_message(to_phone: str, message_text: str) -> bool:
+    """Send ``message_text`` to ``to_phone`` via Twilio WhatsApp Sandbox.
+
+    Returns ``True`` on success, ``False`` if Twilio is not configured
+    (missing / placeholder credentials) or if ``TEST_MODE`` is enabled.
+    Failures are logged to stderr but never raise — the recovery pipeline
+    must not be blocked by a messaging error.
+
+    Environment variables required:
+        TWILIO_ACCOUNT_SID   – ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+        TWILIO_AUTH_TOKEN    – Twilio auth token
+        TWILIO_WHATSAPP_FROM – e.g. "whatsapp:+14155238886"
+    """
+    import sys
+
+    account_sid = os.getenv("TWILIO_ACCOUNT_SID")
+    auth_token = os.getenv("TWILIO_AUTH_TOKEN")
+    from_number = os.getenv("TWILIO_WHATSAPP_FROM", "whatsapp:+14155238886")
+
+    if _test_mode_enabled():
+        print(
+            f"[Twilio] TEST_MODE=true → skipping live send to {to_phone}",
+            file=sys.stderr,
+        )
+        return False
+
+    if _is_placeholder_twilio(account_sid) or _is_placeholder_twilio(auth_token):
+        print(
+            "[Twilio] TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN not configured; skipping send.",
+            file=sys.stderr,
+        )
+        return False
+
+    # Normalise the destination: ensure "whatsapp:" prefix
+    destination = to_phone if to_phone.startswith("whatsapp:") else f"whatsapp:{to_phone}"
+
+    try:
+        from twilio.rest import Client as TwilioClient  # type: ignore[import-untyped]
+
+        client = TwilioClient(account_sid, auth_token)
+        msg = client.messages.create(
+            body=message_text,
+            from_=from_number,
+            to=destination,
+        )
+        print(f"[Twilio] Message sent → SID={msg.sid} status={msg.status}", file=sys.stderr)
+        return True
+    except Exception as exc:  # noqa: BLE001
+        print(f"[Twilio] Send failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return False
+
+
 if __name__ == "__main__":
     import sys
 

@@ -118,3 +118,16 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
 
 ---
 *(Future prompts and file modifications will be appended automatically by Cursor Pro)*
+
+---
+
+### [Prompt #12] - Twilio WhatsApp Sandbox integration
+- **Timestamp**: 2026-08-30 / WhatsApp live messaging
+- **Exact User Prompt**: "Please update backend/agent.py to install twilio library (pip install twilio) and add a function send_live_whatsapp_message(to_phone, message_text). When a payment failure is processed in backend/main.py, send the generated regional Hinglish/Kanglish recovery message directly to MY_PERSONAL_WHATSAPP using Twilio WhatsApp Sandbox!"
+- **Files Created / Modified**:
+  - `requirements.txt` (regenerated with `twilio==9.11.0` and dependencies)
+  - `.env` + `.env.example` (added `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `MY_PERSONAL_WHATSAPP`)
+  - `backend/agent.py` (added `send_live_whatsapp_message()` with placeholder guard, TEST_MODE guard, Twilio `Client.messages.create()` call)
+  - `backend/main.py` (imported `send_live_whatsapp_message`; wired call in `dispatch_recovery()` after DISPATCH audit log — sends to customer phone + `MY_PERSONAL_WHATSAPP`)
+  - `PROMPT_LOG.md`, `BUILD_LOG.md`
+- **Actions Executed**: Installed `twilio 9.11.0` via pip into `.venv`. Added fire-and-forget `send_live_whatsapp_message()` that skips silently when `TEST_MODE=true` or credentials are placeholders. Wired send in `dispatch_recovery()`. Ran `pytest` → 30 passed. Committed and pushed.
