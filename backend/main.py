@@ -14,7 +14,7 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from sqlalchemy.orm import Session
 
 from backend.agent import diagnose_failure, send_live_whatsapp_message
@@ -393,7 +393,15 @@ def _maybe_simulate_recovery(db: Session, txn: Transaction, recover: bool) -> No
 def serve_dashboard():
     if not FRONTEND_INDEX.is_file():
         raise HTTPException(status_code=404, detail="Dashboard not found")
-    return FileResponse(FRONTEND_INDEX, media_type="text/html")
+    html_content = FRONTEND_INDEX.read_text(encoding="utf-8")
+    return HTMLResponse(
+        content=html_content,
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
 
 
 @app.get("/health")
