@@ -104,6 +104,14 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 
 ---
 
+### [Entry #25] WhatsApp localhost URL rendered as plain text
+- **Status**: 🟢 RESOLVED
+- **Component**: `backend/agent.py`, `backend/main.py`
+- **What happened**: Green API messages showed `http://127.0.0.1:8000/api/v1/recovery/pay/...` as white plain text. WhatsApp does not auto-linkify loopback hosts, and a phone cannot open the merchant PC's localhost.
+- **Fix / Action Taken**: WhatsApp copy now uses a public `https://rzp.io/...` URL on its own line. Green API sends an interactive **Pay now** URL button, then falls back to `sendMessage` with `linkPreview: true`. Local RecoverPay click URL is kept for dashboard testing only.
+
+---
+
 ### [Entry #24] Recovery completion triggers and conversion rate
 - **Status**: 🟢 COMPLETE
 - **Component**: `backend/main.py`

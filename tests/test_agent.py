@@ -3,9 +3,11 @@
 from decimal import Decimal
 
 from backend.agent import (
+    build_rich_whatsapp_message,
     classify_failure_code,
     diagnose_failure,
     fallback_diagnostic,
+    is_whatsapp_linkifiable,
     message_preserves_payment_link,
     resolve_language_register,
 )
@@ -138,3 +140,15 @@ def test_classify_failure_code_categories():
     assert classify_failure_code("INSUFFICIENT_FUNDS") == "INSUFFICIENT_FUNDS"
     assert classify_failure_code("CARD_EXPIRED") == "EXPIRED_CARD"
     assert classify_failure_code("AUTHENTICATION_FAILED") == "AUTHENTICATION_FAILED"
+
+
+def test_localhost_is_not_whatsapp_linkifiable():
+    assert is_whatsapp_linkifiable("http://127.0.0.1:8000/api/v1/recovery/pay/x") is False
+    assert is_whatsapp_linkifiable("http://localhost:8000/pay") is False
+    assert is_whatsapp_linkifiable("https://rzp.io/l/x8y9z21") is True
+
+
+def test_rich_message_puts_https_link_on_own_line():
+    msg = build_rich_whatsapp_message(_request(), LanguageRegister.HINGLISH)
+    assert f"\n{LINK}" in msg
+    assert "1-Click Payment Link: http://" not in msg

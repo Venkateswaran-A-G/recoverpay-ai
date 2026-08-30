@@ -340,3 +340,16 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `tests/test_main.py` — click, 72% mix, voice recovered
   - `PROMPT_LOG.md`, `BUILD_LOG.md`
 - **Actions Executed**: Live `POST /api/v1/simulator/run-batch?count=20` on uvicorn `--reload` returned recovery_rate 70.0%. Pytest run, then committed and pushed to `origin/main`.
+
+---
+
+### [Prompt #32] - WhatsApp payment URL was plain text, not a hyperlink
+- **Timestamp**: 2026-08-30 / WhatsApp linkification
+- **Exact User Prompt**: "please check that the message does not have any hyperlink it is like plain text"
+- **Files Created / Modified**:
+  - `backend/agent.py` — `is_whatsapp_linkifiable`, URL on its own line, Green API URL button + `linkPreview`
+  - `backend/main.py` — WhatsApp body uses public `https://rzp.io` instead of `http://127.0.0.1`
+  - `tests/test_agent.py`, `tests/test_main.py`
+  - `.env.example` — `PUBLIC_BASE_URL` note
+  - `PROMPT_LOG.md`, `BUILD_LOG.md`
+- **Actions Executed**: WhatsApp never linkifies localhost. Switched outbound copy to a public HTTPS Razorpay URL on its own line, plus a Pay now button. Pytest, commit, push.

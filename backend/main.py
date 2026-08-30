@@ -17,7 +17,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from sqlalchemy.orm import Session
 
-from backend.agent import build_rich_whatsapp_message, diagnose_failure, send_green_api_message
+from backend.agent import (
+    build_rich_whatsapp_message,
+    diagnose_failure,
+    is_whatsapp_linkifiable,
+    send_green_api_message,
+)
 from backend.database import get_db, init_db
 from backend.guardrails import evaluate_guardrails, is_opted_out
 from backend.models import AuditLog, OptOutRegistry, Transaction
@@ -460,6 +465,16 @@ def recovery_pay_url(txn_id: str) -> str:
     return f"{public_app_base()}/api/v1/recovery/pay/{txn_id}"
 
 
+def whatsapp_payment_link(txn_id: str, rzp_link: str) -> str:
+    """Pick a URL WhatsApp will render as a blue hyperlink (never localhost)."""
+    recover = recovery_pay_url(txn_id)
+    if is_whatsapp_linkifiable(recover):
+        return recover
+    if is_whatsapp_linkifiable(rzp_link):
+        return rzp_link
+    return f"https://rzp.io/l/{txn_id.replace('-', '')[:12]}"
+
+
 def mark_payment_recovered(
     db: Session,
     txn: Transaction,
@@ -497,13 +512,17 @@ def dispatch_recovery(
         txn_id=txn.id,
         customer_phone=txn.customer_phone,
     )
-    link = recovery_pay_url(txn.id)
+    link = whatsapp_payment_link(txn.id, rzp_link)
     write_audit(
         db,
         transaction_id=txn.id,
         step_name=AuditStepName.PAYMENT_LINK_GEN.value,
         step_status=AuditStepStatus.SUCCESS.value,
-        raw_payload={"payment_link": link, "razorpay_link": rzp_link},
+        raw_payload={
+            "payment_link": link,
+            "razorpay_link": rzp_link,
+            "recover_click_url": recovery_pay_url(txn.id),
+        },
         execution_time_ms=int((time.perf_counter() - started) * 1000),
     )
 
@@ -562,7 +581,7 @@ def dispatch_recovery(
         rich_msg = build_rich_whatsapp_message(
             request, diagnostic.language_register, bank_outage_note=bank_outage_note
         )
-        send_green_api_message(personal_wa, rich_msg)
+        send_green_api_message(personal_wa, rich_msg, link_url=link)
     # ─────────────────────────────────────────────────────────────────────────
 
     return diagnostic.language_register.value, diagnostic.used_fallback

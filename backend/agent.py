@@ -15,6 +15,9 @@ from collections.abc import Callable
 from decimal import Decimal
 from typing import Any
 
+import ipaddress
+from urllib.parse import urlparse
+
 from backend.schemas import (
     MIN_LLM_CONFIDENCE,
     LLMDiagnosticOutput,
@@ -258,6 +261,36 @@ def classify_failure_code(failure_code: str, description: str | None = None) -> 
     return "USER_DROPOFF"
 
 
+_LOCAL_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1"}
+
+
+def is_whatsapp_linkifiable(url: str) -> bool:
+    """WhatsApp only auto-linkifies public http(s) hosts — never localhost or LAN IPs."""
+    if not url or not str(url).strip():
+        return False
+    parsed = urlparse(str(url).strip())
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme not in {"http", "https"} or not host:
+        return False
+    if host in _LOCAL_HOSTS or host.endswith(".local"):
+        return False
+    try:
+        ip = ipaddress.ip_address(host)
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+            return False
+    except ValueError:
+        pass
+    return True
+
+
+def first_public_http_url(text: str) -> str | None:
+    for match in re.findall(r"https?://[^\s<>\"']+", text or ""):
+        cleaned = match.rstrip(").,;]")
+        if is_whatsapp_linkifiable(cleaned):
+            return cleaned
+    return None
+
+
 def message_preserves_payment_link(message: str, payment_link: str) -> bool:
     """Require the exact, unaltered Razorpay link in the generated copy."""
     return bool(payment_link) and payment_link in message
@@ -291,7 +324,8 @@ def build_rich_whatsapp_message(
 
         {Greeting} {name}! {Poss} {merchant} order (₹{amount}) payment {cause}.
         💡 Tip: {actionable tip}
-        🔗 1-Click Payment Link: {link}
+        🔗 Tap the 1-click payment link below:
+        {link}
         ℹ️ Note: {bank outage note}   ← only if bank is degraded
 
     All four elements — regional greeting, plain failure cause, actionable tip,
@@ -312,7 +346,8 @@ def build_rich_whatsapp_message(
     message = (
         f"{greeting} {name}! {possessive} {merchant} order (₹{amount}) payment {cause}.\n"
         f"💡 Tip: {tip}\n"
-        f"🔗 1-Click Payment Link: {request.payment_link}"
+        f"🔗 Tap the 1-click payment link below:\n"
+        f"{request.payment_link}"
     )
     if bank_outage_note:
         message += f"\nℹ️ Note: {bank_outage_note}"
@@ -460,16 +495,17 @@ def diagnose_failure(
         )
 
 
-def send_green_api_message(to_phone: str, message_text: str) -> bool:
+def send_green_api_message(
+    to_phone: str,
+    message_text: str,
+    *,
+    link_url: str | None = None,
+) -> bool:
     """Send a WhatsApp message via Green API (https://green-api.com).
 
-    Free tier — no templates required, free-form messages, works with
-    any WhatsApp number the instance is linked to.
-
-    Environment variables required:
-        GREEN_API_INSTANCE_ID – e.g. "710722723381"
-        GREEN_API_TOKEN       – API token from Green API console
-        MY_PERSONAL_WHATSAPP  – destination phone in E.164 digits e.g. "9148001667"
+    Prefers an interactive URL button so the customer gets a tappable Pay now
+    control. Falls back to sendMessage with linkPreview so public https URLs
+    render as blue hyperlinks (localhost URLs never will).
     """
     import sys
 
@@ -490,14 +526,60 @@ def send_green_api_message(to_phone: str, message_text: str) -> bool:
         return False
 
     chat_id = f"{clean}@c.us"
-    url = f"https://api.green-api.com/waInstance{instance_id}/sendMessage/{token}"
+    clickable = (link_url or "").strip() or first_public_http_url(message_text)
+    if clickable and not is_whatsapp_linkifiable(clickable):
+        clickable = None
+    base = f"https://api.green-api.com/waInstance{instance_id}"
 
     try:
         import requests as _requests  # type: ignore[import-untyped]
 
+        if clickable:
+            button_resp = _requests.post(
+                f"{base}/sendInteractiveButtons/{token}",
+                json={
+                    "chatId": chat_id,
+                    "header": "RecoverPay AI",
+                    "body": message_text,
+                    "footer": "Secure 1-click UPI",
+                    "buttons": [
+                        {
+                            "type": "url",
+                            "buttonId": "1",
+                            "buttonText": "Pay now",
+                            "url": clickable,
+                        }
+                    ],
+                },
+                timeout=10,
+            )
+            if button_resp.status_code == 200:
+                data = button_resp.json()
+                print(
+                    f"[GreenAPI] URL button sent → idMessage={data.get('idMessage', '?')} to={chat_id}",
+                    file=sys.stderr,
+                )
+                return True
+            print(
+                f"[GreenAPI] URL button unavailable ({button_resp.status_code}); falling back to text link.",
+                file=sys.stderr,
+            )
+
+        payload: dict[str, Any] = {
+            "chatId": chat_id,
+            "message": message_text,
+            "linkPreview": True,
+            "typePreview": "large",
+        }
+        if clickable:
+            payload["customPreview"] = {
+                "title": "Pay now · RecoverPay AI",
+                "description": "1-click UPI recovery payment",
+                "link": clickable,
+            }
         resp = _requests.post(
-            url,
-            json={"chatId": chat_id, "message": message_text},
+            f"{base}/sendMessage/{token}",
+            json=payload,
             timeout=10,
         )
         if resp.status_code == 200:
