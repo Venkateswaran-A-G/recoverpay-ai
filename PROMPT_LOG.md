@@ -121,18 +121,6 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
 
 ---
 
-### [Prompt #13–#15] - WhatsApp API exploration and cleanup
-- **Timestamp**: 2026-08-30 / Post-Twilio cleanup
-- **Summary**: Explored Twilio ContentSid template workaround, CallMeBot, WPSent, WireWeb, and Whapi Cloud as alternative WhatsApp channels. Whapi worked briefly (messages delivered) but hit trial limit. User requested removal of all third-party WhatsApp APIs.
-- **Final state after cleanup**:
-  - `backend/agent.py` — no messaging functions; LLM diagnostics only
-  - `backend/main.py` — no WhatsApp import or send calls; DB committed before returning from `dispatch_recovery()`
-  - `.env` / `.env.example` — only 7 original core keys (no Twilio, no Whapi, no CallMeBot vars)
-  - `scripts/smoke_api.py` — added `X-API-KEY` header to all protected endpoint calls
-- **Tests**: 30 passed
-
----
-
 ### [Prompt #12] - Twilio WhatsApp Sandbox integration (later removed)
 - **Timestamp**: 2026-08-30 / WhatsApp live messaging
 - **Exact User Prompt**: "Please update backend/agent.py to install twilio library (pip install twilio) and add a function send_live_whatsapp_message(to_phone, message_text). When a payment failure is processed in backend/main.py, send the generated regional Hinglish/Kanglish recovery message directly to MY_PERSONAL_WHATSAPP using Twilio WhatsApp Sandbox!"
@@ -143,3 +131,15 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `backend/main.py` (wired WhatsApp call in `dispatch_recovery()` — later removed)
   - `PROMPT_LOG.md`, `BUILD_LOG.md`
 - **Actions Executed**: Twilio integrated, tested, and confirmed working (messages delivered). Subsequently removed in Prompts #13–#15 at user request after exploring alternatives (Whapi, CallMeBot). Final state: `send_live_whatsapp_message()` does NOT exist in `backend/agent.py`; no Twilio vars in `.env`. The core pipeline (guardrails, LLM agent, audit logs) remains intact.
+
+---
+
+### [Prompt #13–#15] - WhatsApp API exploration and cleanup
+- **Timestamp**: 2026-08-30 / Post-Twilio cleanup
+- **Summary**: Explored Twilio ContentSid template workaround, CallMeBot, WPSent, WireWeb, and Whapi Cloud as alternative WhatsApp channels. Whapi worked briefly (messages delivered) but hit trial limit. User requested removal of all third-party WhatsApp APIs.
+- **Final state after cleanup**:
+  - `backend/agent.py` — no messaging functions; LLM diagnostics only
+  - `backend/main.py` — no WhatsApp import or send calls; DB committed before returning from `dispatch_recovery()`
+  - `.env` / `.env.example` — only 7 original core keys (no Twilio, no Whapi, no CallMeBot vars)
+  - `scripts/smoke_api.py` — added `X-API-KEY` header to all protected endpoint calls
+- **Tests**: 30 passed

@@ -117,4 +117,4 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 - **Component**: `backend/agent.py` + `backend/main.py`
 - **What happened**: Twilio integrated and working — messages delivered to `+919148001667`. ContentSid template workaround required due to Twilio trial account restrictions. Subsequently, Whapi Cloud and CallMeBot were explored as alternatives. All messaging code removed at user request.
 - **Current state**: `send_live_whatsapp_message()` does NOT exist in `backend/agent.py`. No Twilio or third-party messaging vars in `.env`. The dispatch pipeline commits DB and returns without any external messaging call.
-- **Verified**: `pytest` → 30 passed. `requirements.txt` updated with `twilio==9.11.0`. `.env` / `.env.example` updated with Twilio vars.
+- **Verified**: `pytest` → 30 passed. `.env` and `.env.example` contain only the 7 original core keys.
