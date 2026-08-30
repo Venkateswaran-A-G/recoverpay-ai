@@ -295,3 +295,14 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `tests/test_main.py` — paid HMAC, reconciliation, funnel keys, approve-all
   - `PROMPT_LOG.md`, `BUILD_LOG.md`
 - **Actions Executed**: `pytest`. Smoke-tested dashboard at localhost:8000. Committed and pushed.
+
+---
+
+### [Prompt #28] - Mermaid.js recovery funnel diagrams
+- **Timestamp**: 2026-08-30 / Mermaid funnel
+- **Exact User Prompt**: "Update frontend/index.html to use Mermaid.js for rendering the Stage-by-Stage Recovery Conversion Funnel. Include Mermaid.js CDN, initialize dark theme, replace flat progress bars with a dynamic LR flowchart, enhance Failure Reason Breakdown into a Mermaid categorical diagram. Test uvicorn --reload at localhost:8000. Commit 'feat: enhance recovery conversion funnel with interactive Mermaid.js flowchart diagrams' and push to main."
+- **Files Created / Modified**:
+  - `frontend/index.html` — Mermaid CDN, LR funnel + TB breakdown, live count updates
+  - `tests/test_main.py` — asserts Mermaid CDN and flowchart LR source
+  - `PROMPT_LOG.md`, `BUILD_LOG.md`
+- **Actions Executed**: `pytest`. Restarted uvicorn with --reload. Committed and pushed.

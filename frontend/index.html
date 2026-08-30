@@ -14,6 +14,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
   <script>
     tailwind.config = {
       darkMode: "class",
@@ -119,15 +120,9 @@
       border-color: rgb(56, 189, 248);
       background: rgba(14, 165, 233, 0.14);
     }
-    .funnel-step {
-      position: relative;
-      min-height: 44px;
-    }
-    .funnel-fill {
-      height: 36px;
-      border-radius: 10px;
-      transition: width 400ms ease;
-    }
+    #funnelChart, #breakdownChart { overflow-x: auto; }
+    #funnelChart svg, #breakdownChart svg { max-width: 100%; height: auto; }
+    #funnelChart .nodeLabel, #breakdownChart .nodeLabel { font-family: Sora, sans-serif; }
   </style>
 </head>
 <body class="text-slate-900 dark:text-slate-100 min-h-screen relative overflow-x-hidden">
@@ -185,16 +180,16 @@
     </section>
 
     <section id="opsView" class="space-y-6">
-    <section class="grid grid-cols-1 xl:grid-cols-2 gap-3.5">
+    <section class="grid grid-cols-1 gap-3.5">
       <article class="glass lift rounded-2xl p-4">
         <h3 class="text-[13px] font-semibold mb-1">Stage-by-Stage Recovery Conversion Funnel</h3>
         <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-3">At Risk ➔ AI Diagnosed ➔ Policy Approved ➔ Action Executed ➔ Recovered</p>
-        <div id="funnelChart" class="space-y-2"></div>
+        <div id="funnelChart" class="min-h-[140px]"></div>
       </article>
       <article class="glass lift rounded-2xl p-4">
         <h3 class="text-[13px] font-semibold mb-1">Failure Reason Breakdown</h3>
         <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-3">Categorized from ingested failure codes</p>
-        <div id="breakdownChart" class="space-y-2.5"></div>
+        <div id="breakdownChart" class="min-h-[180px]"></div>
       </article>
     </section>
 
@@ -360,6 +355,12 @@
       dl: ["delhi", "new delhi", "ncr", "north", "haryana", "punjab", "uttar pradesh", "up"],
     };
 
+    if (window.mermaid) {
+      mermaid.initialize({ startOnLoad: true, theme: "dark" });
+    }
+    let mermaidSeq = 0;
+    let lastMetrics = null;
+
     const $ = (id) => document.getElementById(id);
     const toast = (msg) => {
       const el = $("toast");
@@ -381,20 +382,21 @@
 
     async function loadMetrics() {
       const data = await (await fetch("/api/v1/dashboard/metrics", { headers: { "X-API-KEY": "demo_dashboard_key" } })).json();
+      lastMetrics = data;
       $("mFailed").textContent = formatINR(data.total_failed_volume);
       $("mRecovered").textContent = formatINR(data.recovered_revenue);
       $("mRate").textContent = Number(data.recovery_rate_percent || 0).toFixed(2) + "%";
       $("mRoi").textContent = Number(data.net_roi || 0).toFixed(2) + "x";
-      renderFunnel(data);
-      renderBreakdown(data.failure_breakdown || {});
+      await renderFunnel(data);
+      await renderBreakdown(data.failure_breakdown || {});
     }
 
     const FUNNEL_STEPS = [
-      { key: "failed_ingested", label: "At Risk", color: "bg-rose-500/80" },
-      { key: "ai_diagnosed", label: "AI Diagnosed", color: "bg-sky-500/80" },
-      { key: "policy_approved", label: "Policy Approved", color: "bg-amber-500/80" },
-      { key: "action_executed", label: "Action Executed", color: "bg-violet-500/80" },
-      { key: "payment_verified", label: "Recovered", color: "bg-emerald-500/80" },
+      { key: "failed_ingested", label: "🚨 At Risk" },
+      { key: "ai_diagnosed", label: "🤖 AI Diagnosed" },
+      { key: "policy_approved", label: "🛡️ Policy Approved" },
+      { key: "action_executed", label: "⚡ Action Executed" },
+      { key: "payment_verified", label: "🟢 Recovered" },
     ];
     const BREAKDOWN_LABELS = {
       TEMPORARY_BANK_DEGRADATION: "Temporary Bank Degradation",
@@ -403,57 +405,76 @@
       EXPIRED_METHOD: "Expired Method",
       CHECKOUT_ABANDONMENT: "Checkout Abandonment",
     };
-    const BREAKDOWN_COLORS = {
-      TEMPORARY_BANK_DEGRADATION: "bg-orange-500/80",
-      AUTHENTICATION_ISSUE: "bg-sky-500/80",
-      INSUFFICIENT_FUNDS: "bg-rose-500/80",
-      EXPIRED_METHOD: "bg-amber-500/80",
-      CHECKOUT_ABANDONMENT: "bg-slate-400/80",
-    };
 
-    function renderFunnel(data) {
+    async function drawMermaid(el, definition) {
+      if (!el) return;
+      if (!window.mermaid) {
+        el.textContent = "Mermaid.js failed to load";
+        return;
+      }
+      try {
+        mermaidSeq += 1;
+        const { svg } = await mermaid.render("rp-mmd-" + mermaidSeq, definition);
+        el.innerHTML = svg;
+      } catch (err) {
+        el.textContent = "Unable to render diagram";
+      }
+    }
+
+    async function renderFunnel(data) {
       const root = $("funnelChart");
       if (!root) return;
       const funnel = data.funnel || data;
-      const max = Math.max(1, Number(funnel.failed_ingested || data.failed_ingested || 0));
-      root.innerHTML = FUNNEL_STEPS.map((step, i) => {
-        const n = Number(funnel[step.key] ?? data[step.key] ?? 0);
-        const pct = Math.max(8, Math.round((n / max) * 100));
-        const arrow = i < FUNNEL_STEPS.length - 1 ? `<span class="text-[10px] text-slate-400">➔</span>` : "";
-        return `<div class="funnel-step">
-          <div class="flex items-center justify-between text-[11px] mb-1">
-            <span class="font-semibold">${step.label}</span>
-            <span class="font-mono">${n}</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <div class="flex-1 h-9 rounded-xl bg-slate-100 dark:bg-slate-800/80 overflow-hidden">
-              <div class="funnel-fill ${step.color}" style="width:${pct}%"></div>
-            </div>
-            ${arrow}
-          </div>
-        </div>`;
-      }).join("");
+      const counts = FUNNEL_STEPS.map((step) => Number(funnel[step.key] ?? data[step.key] ?? 0));
+      const def = [
+        "flowchart LR",
+        `  A["${FUNNEL_STEPS[0].label} (${counts[0]})"] --> B["${FUNNEL_STEPS[1].label} (${counts[1]})"]`,
+        `  B --> C["${FUNNEL_STEPS[2].label} (${counts[2]})"]`,
+        `  C --> D["${FUNNEL_STEPS[3].label} (${counts[3]})"]`,
+        `  D --> E["${FUNNEL_STEPS[4].label} (${counts[4]})"]`,
+        "  classDef glass stroke-width:2px",
+        "  classDef risk fill:#fb7185,stroke:#fecdd3,color:#0f172a,rx:14,ry:14",
+        "  classDef ai fill:#38bdf8,stroke:#bae6fd,color:#0f172a,rx:14,ry:14",
+        "  classDef policy fill:#fbbf24,stroke:#fde68a,color:#0f172a,rx:14,ry:14",
+        "  classDef action fill:#a78bfa,stroke:#ddd6fe,color:#0f172a,rx:14,ry:14",
+        "  classDef recovered fill:#34d399,stroke:#a7f3d0,color:#0f172a,rx:14,ry:14",
+        "  class A risk",
+        "  class B ai",
+        "  class C policy",
+        "  class D action",
+        "  class E recovered",
+      ].join("\n");
+      await drawMermaid(root, def);
     }
 
-    function renderBreakdown(breakdown) {
+    async function renderBreakdown(breakdown) {
       const root = $("breakdownChart");
       if (!root) return;
       const keys = Object.keys(BREAKDOWN_LABELS);
-      const max = Math.max(1, ...keys.map((k) => Number(breakdown[k] || 0)));
-      root.innerHTML = keys.map((key) => {
+      const rows = keys.map((key, i) => {
         const n = Number(breakdown[key] || 0);
-        const pct = Math.max(n ? 6 : 0, Math.round((n / max) * 100));
-        return `<div>
-          <div class="flex items-center justify-between text-[11px] mb-1">
-            <span class="font-semibold">${BREAKDOWN_LABELS[key]}</span>
-            <span class="font-mono">${n}</span>
-          </div>
-          <div class="h-2.5 rounded-full bg-slate-100 dark:bg-slate-800/80 overflow-hidden">
-            <div class="h-full ${BREAKDOWN_COLORS[key]}" style="width:${pct}%"></div>
-          </div>
-          <div class="font-mono text-[9px] text-slate-400 mt-0.5">${key}</div>
-        </div>`;
-      }).join("");
+        const id = "F" + (i + 1);
+        return { id, key, n, label: BREAKDOWN_LABELS[key] };
+      });
+      const def = [
+        "flowchart TB",
+        '  ROOT["📊 Failure Reasons"]',
+        ...rows.map((row) => `  ROOT --> ${row.id}["${row.label}<br/>${row.key}<br/>${row.n}"]`),
+        "  classDef hub fill:#0ea5e9,stroke:#7dd3fc,color:#0f172a,stroke-width:2px,rx:16,ry:16",
+        "  classDef cat fill:#1e293b,stroke:#38bdf8,color:#f8fafc,stroke-width:2px,rx:14,ry:14",
+        "  classDef bank fill:#fb923c,stroke:#fed7aa,color:#0f172a,rx:14,ry:14",
+        "  classDef auth fill:#38bdf8,stroke:#bae6fd,color:#0f172a,rx:14,ry:14",
+        "  classDef funds fill:#fb7185,stroke:#fecdd3,color:#0f172a,rx:14,ry:14",
+        "  classDef expired fill:#fbbf24,stroke:#fde68a,color:#0f172a,rx:14,ry:14",
+        "  classDef abandon fill:#94a3b8,stroke:#e2e8f0,color:#0f172a,rx:14,ry:14",
+        "  class ROOT hub",
+        "  class F1 bank",
+        "  class F2 auth",
+        "  class F3 funds",
+        "  class F4 expired",
+        "  class F5 abandon",
+      ].join("\n");
+      await drawMermaid(root, def);
     }
 
     function matchesAmount(amount) {
@@ -824,6 +845,13 @@
       document.documentElement.classList.toggle("dark", theme === "dark");
       localStorage.setItem("recoverpay-theme", theme);
       syncThemeToggle();
+      if (window.mermaid) {
+        mermaid.initialize({ startOnLoad: true, theme: theme === "dark" ? "dark" : "default" });
+      }
+      if (lastMetrics) {
+        renderFunnel(lastMetrics);
+        renderBreakdown(lastMetrics.failure_breakdown || {});
+      }
     }
     $("themeToggle").addEventListener("click", () => {
       applyTheme(document.documentElement.classList.contains("dark") ? "light" : "dark");

@@ -104,6 +104,13 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 
 ---
 
+### [Entry #21] Mermaid.js funnel and breakdown diagrams
+- **Status**: 🟢 COMPLETE
+- **Component**: `frontend/index.html`
+- **What happened**: Replaced flat CSS bars with Mermaid v10 flowcharts. Funnel is LR with live counts; failure breakdown is a TB categorical diagram. Diagrams re-render on metrics refresh and theme toggle.
+
+---
+
 ### [Entry #20] Enterprise funnel, paid webhook, review queue
 - **Status**: 🟢 COMPLETE
 - **Component**: `backend/main.py` + `frontend/index.html`
