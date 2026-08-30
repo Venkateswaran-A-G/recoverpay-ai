@@ -281,3 +281,17 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `frontend/index.html` — removed mid-page and row Accept banners; added fixed left-side toast notification
   - `PROMPT_LOG.md`, `BUILD_LOG.md`
 - **Actions Executed**: Relocated merchant voice permission to a left-edge notification card. Committed and pushed.
+
+---
+
+### [Prompt #27] - Funnel, paid webhook, and human review queue
+- **Timestamp**: 2026-08-30 / Enterprise engineering fixes
+- **Exact User Prompt**: "Implement the 4 Critical Engineering Fixes: 1) POST /api/v1/webhooks/razorpay-paid HMAC + RECOVERED + PAYMENT_EVIDENCE_CONFIRMED. 2) GET /api/v1/dashboard/metrics funnel counts. 3) Visual recovery conversion funnel and failure reason breakdown charts. 4) Human Review Queue tab with single-click batch approval. Test at localhost:8000. Commit 'feat: implement recovery conversion funnel, razorpay paid webhook verification, and human review queue' and push to main."
+- **Files Created / Modified**:
+  - `backend/schemas.py` — funnel fields, `PaidWebhookResponse`, `ApproveAllResponse`, `PAYMENT_EVIDENCE_CONFIRMED`
+  - `backend/main.py` — paid webhook, funnel metrics, classify breakdown, approve-all
+  - `backend/razorpay_client.py` — payment-link notes for reconciliation
+  - `frontend/index.html` — funnel + breakdown charts, Human Review Queue view
+  - `tests/test_main.py` — paid HMAC, reconciliation, funnel keys, approve-all
+  - `PROMPT_LOG.md`, `BUILD_LOG.md`
+- **Actions Executed**: `pytest`. Smoke-tested dashboard at localhost:8000. Committed and pushed.

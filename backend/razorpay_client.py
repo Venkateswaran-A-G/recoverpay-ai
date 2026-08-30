@@ -72,6 +72,8 @@ def generate_payment_link(
         "customer": {"contact": customer_phone},
         "notify": {"sms": False, "email": False},
         "reminder_enable": False,
+        "reference_id": txn_id[:40],
+        "notes": {"recoverpay_txn_id": txn_id},
     }
     created = client.payment_link.create(payload)
     return created.get("short_url") or created.get("url") or f"https://rzp.io/l/{txn_id[:12]}"

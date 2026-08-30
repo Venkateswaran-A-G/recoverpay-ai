@@ -29,6 +29,7 @@ from backend.razorpay_client import (
 )
 from backend.schemas import (
     OUTREACH_COST_PER_MESSAGE_INR,
+    ApproveAllResponse,
     ApproveResponse,
     AuditLogRead,
     AuditStepName,
@@ -36,8 +37,11 @@ from backend.schemas import (
     BatchSimulatorResponse,
     DashboardMetrics,
     ExecutionGraphNode,
+    FAILURE_BREAKDOWN_KEYS,
+    PaidWebhookResponse,
     RazorpayFailurePayload,
     RecoveryCopyRequest,
+    RecoveryFunnel,
     RecoveryStatus,
     TransactionAuditDetail,
     VOICE_CALL_THRESHOLD_INR,
@@ -323,6 +327,25 @@ def public_audit(log: AuditLog) -> AuditLogRead:
     return AuditLogRead.model_validate(data)
 
 
+def classify_failure_breakdown(failure_code: str, failure_reason: str | None) -> str:
+    """Map raw failure text onto the five enterprise breakdown buckets."""
+    text = f"{failure_code} {failure_reason or ''}".upper()
+    if any(token in text for token in ("INSUFFICIENT", "LOW_BALANCE", "NSF")):
+        return "INSUFFICIENT_FUNDS"
+    if any(token in text for token in ("AUTH", "3DS", "OTP", "PIN", "2FA")):
+        return "AUTHENTICATION_ISSUE"
+    if any(token in text for token in ("EXPIRED", "CARD_EXPIRED", "INVALID_CARD")):
+        return "EXPIRED_METHOD"
+    if any(token in text for token in ("ABANDON", "DROPOFF", "USER_CANCEL", "CHECKOUT")):
+        return "CHECKOUT_ABANDONMENT"
+    if any(
+        token in text
+        for token in ("TIMEOUT", "TIMED_OUT", "GATEWAY", "BANK", "OUTAGE", "DEGRAD", "ISSUER")
+    ):
+        return "TEMPORARY_BANK_DEGRADATION"
+    return "CHECKOUT_ABANDONMENT"
+
+
 def compute_metrics(db: Session) -> DashboardMetrics:
     txns = db.query(Transaction).all()
     total = len(txns)
@@ -340,6 +363,56 @@ def compute_metrics(db: Session) -> DashboardMetrics:
     outreach_cost = (OUTREACH_COST_PER_MESSAGE_INR * dispatch_count).quantize(Decimal("0.01"))
     rate = float((recovered_revenue / failed_volume * 100) if failed_volume else 0)
     roi = float((recovered_revenue / outreach_cost) if outreach_cost else 0)
+
+    diagnosed_ids = {
+        row[0]
+        for row in db.query(AuditLog.transaction_id)
+        .filter(
+            AuditLog.step_name.in_(
+                [
+                    AuditStepName.LLM_DIAGNOSIS.value,
+                    AuditStepName.LLM_FALLBACK_TRIGGERED.value,
+                ]
+            )
+        )
+        .distinct()
+        .all()
+        if row[0]
+    }
+    action_ids = {
+        row[0]
+        for row in db.query(AuditLog.transaction_id)
+        .filter(
+            AuditLog.step_name.in_(
+                [
+                    AuditStepName.DISPATCH.value,
+                    AuditStepName.REAL_PHONE_VOICE_CALL_PLACED.value,
+                ]
+            ),
+            AuditLog.step_status == AuditStepStatus.SUCCESS.value,
+        )
+        .distinct()
+        .all()
+        if row[0]
+    }
+    blocked = {
+        RecoveryStatus.OPTED_OUT.value,
+        RecoveryStatus.MAX_RETRIES_REACHED.value,
+        RecoveryStatus.FAILED_GUARDRAIL.value,
+    }
+    policy_approved = sum(1 for t in txns if t.recovery_status not in blocked)
+    payment_verified = len(recovered)
+    funnel = RecoveryFunnel(
+        failed_ingested=total,
+        ai_diagnosed=len(diagnosed_ids),
+        policy_approved=policy_approved,
+        action_executed=len(action_ids),
+        payment_verified=payment_verified,
+    )
+    breakdown = {key: 0 for key in FAILURE_BREAKDOWN_KEYS}
+    for txn in txns:
+        breakdown[classify_failure_breakdown(txn.failure_code, txn.failure_reason)] += 1
+
     return DashboardMetrics(
         total_failed_volume=failed_volume.quantize(Decimal("0.01")),
         recovered_revenue=recovered_revenue.quantize(Decimal("0.01")),
@@ -349,12 +422,25 @@ def compute_metrics(db: Session) -> DashboardMetrics:
         total_transactions=total,
         recovered_count=len(recovered),
         flagged_for_approval_count=sum(
-            1 for t in txns if t.recovery_status == RecoveryStatus.FLAGGED_FOR_APPROVAL.value
+            1
+            for t in txns
+            if t.recovery_status
+            in {
+                RecoveryStatus.FLAGGED_FOR_APPROVAL.value,
+                RecoveryStatus.REQUIRES_VOICE_CALL_PERMISSION.value,
+            }
         ),
         opted_out_count=sum(1 for t in txns if t.recovery_status == RecoveryStatus.OPTED_OUT.value),
         max_retries_reached_count=sum(
             1 for t in txns if t.recovery_status == RecoveryStatus.MAX_RETRIES_REACHED.value
         ),
+        funnel=funnel,
+        failed_ingested=funnel.failed_ingested,
+        ai_diagnosed=funnel.ai_diagnosed,
+        policy_approved=funnel.policy_approved,
+        action_executed=funnel.action_executed,
+        payment_verified=funnel.payment_verified,
+        failure_breakdown=breakdown,
     )
 
 
@@ -649,6 +735,117 @@ async def razorpay_webhook(request: Request, db: Session = Depends(get_db)) -> W
     )
 
 
+def _entity(wrapper: Any) -> dict[str, Any]:
+    if not isinstance(wrapper, dict):
+        return {}
+    inner = wrapper.get("entity")
+    return inner if isinstance(inner, dict) else wrapper
+
+
+def _notes_txn_id(notes: Any) -> str | None:
+    if not isinstance(notes, dict):
+        return None
+    for key in ("recoverpay_txn_id", "transaction_id", "txn_id"):
+        value = notes.get(key)
+        if value:
+            return str(value)
+    return None
+
+
+def find_transaction_for_paid_event(db: Session, event: dict[str, Any]) -> Transaction | None:
+    """Resolve a RecoverPay transaction from a Razorpay payment_link.paid payload."""
+    payload = event.get("payload") if isinstance(event.get("payload"), dict) else {}
+    payment = _entity(payload.get("payment"))
+    link = _entity(payload.get("payment_link"))
+    candidates: list[str] = []
+    for notes in (link.get("notes"), payment.get("notes"), event.get("notes")):
+        txn_id = _notes_txn_id(notes)
+        if txn_id:
+            candidates.append(txn_id)
+    ref = link.get("reference_id") or payment.get("reference_id")
+    if ref:
+        candidates.append(str(ref))
+    for candidate in candidates:
+        txn = db.get(Transaction, candidate)
+        if txn is not None:
+            return txn
+    payment_id = payment.get("id")
+    if payment_id:
+        txn = (
+            db.query(Transaction)
+            .filter(Transaction.razorpay_payment_id == str(payment_id))
+            .first()
+        )
+        if txn is not None:
+            return txn
+    short_url = str(link.get("short_url") or link.get("url") or "")
+    slug = short_url.rsplit("/", 1)[-1].strip()
+    if slug:
+        for txn in db.query(Transaction).all():
+            compact = txn.id.replace("-", "")[:12]
+            if slug.startswith(compact) or compact.startswith(slug[:12]):
+                return txn
+    return None
+
+
+@app.post("/api/v1/webhooks/razorpay-paid", response_model=PaidWebhookResponse)
+async def razorpay_paid_webhook(request: Request, db: Session = Depends(get_db)) -> PaidWebhookResponse:
+    """Reconcile ``payment_link.paid`` with HMAC-trusted evidence → RECOVERED."""
+    body = await request.body()
+    signature = request.headers.get("X-Razorpay-Signature")
+    if not verify_webhook_signature(body, signature, webhook_secret()):
+        raise HTTPException(status_code=401, detail="Invalid webhook signature")
+
+    try:
+        event = json.loads(body.decode("utf-8"))
+        if not isinstance(event, dict):
+            raise ValueError("payload must be an object")
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid webhook payload: {exc}") from exc
+
+    event_name = str(event.get("event") or "")
+    if event_name and event_name not in {"payment_link.paid", "payment.captured", "order.paid"}:
+        raise HTTPException(status_code=400, detail=f"Unsupported paid event: {event_name}")
+
+    txn = find_transaction_for_paid_event(db, event)
+    if txn is None:
+        raise HTTPException(status_code=404, detail="No matching recovery transaction for paid event")
+
+    if txn.recovery_status == RecoveryStatus.RECOVERED.value:
+        return PaidWebhookResponse(
+            accepted=True,
+            transaction_id=txn.id,
+            recovery_status=txn.recovery_status,
+            already_processed=True,
+            message="Payment already reconciled",
+        )
+
+    payload = event.get("payload") if isinstance(event.get("payload"), dict) else {}
+    payment = _entity(payload.get("payment"))
+    txn.recovery_status = RecoveryStatus.RECOVERED.value
+    write_audit(
+        db,
+        transaction_id=txn.id,
+        step_name=AuditStepName.PAYMENT_EVIDENCE_CONFIRMED.value,
+        step_status=AuditStepStatus.SUCCESS.value,
+        raw_payload={
+            "event": event_name or "payment_link.paid",
+            "razorpay_payment_id": payment.get("id"),
+            "amount": payment.get("amount"),
+            "currency": payment.get("currency") or txn.currency,
+            "source": "razorpay_payment_link_paid",
+        },
+    )
+    db.commit()
+    return PaidWebhookResponse(
+        accepted=True,
+        transaction_id=txn.id,
+        recovery_status=txn.recovery_status,
+        already_processed=False,
+        message="Payment evidence confirmed — marked RECOVERED",
+    )
+
+
 @app.get("/api/v1/dashboard/metrics", response_model=DashboardMetrics)
 def dashboard_metrics(
     db: Session = Depends(get_db),
@@ -757,6 +954,40 @@ def approve_high_value(
         requires_human_approval=False,
         language_register=language_register,
         message="High-value recovery approved and dispatched",
+    )
+
+
+@app.post("/api/v1/guardrails/approve-all", response_model=ApproveAllResponse)
+def approve_all_pending_reviews(
+    db: Session = Depends(get_db),
+    x_api_key: str | None = Header(default=None, alias="X-API-KEY"),
+) -> ApproveAllResponse:
+    """Single-click batch approval for flagged >₹5k cases. Voice-gate rows are skipped."""
+    _dashboard_authorized(x_api_key)
+    pending = (
+        db.query(Transaction)
+        .filter(Transaction.recovery_status == RecoveryStatus.FLAGGED_FOR_APPROVAL.value)
+        .all()
+    )
+    approved = skipped_voice = failed = 0
+    for txn in pending:
+        if Decimal(txn.amount) > VOICE_CALL_THRESHOLD_INR:
+            skipped_voice += 1
+            continue
+        if is_opted_out(db, txn.customer_phone):
+            failed += 1
+            continue
+        try:
+            dispatch_recovery(db, txn)
+            approved += 1
+        except Exception:  # noqa: BLE001
+            failed += 1
+    db.commit()
+    return ApproveAllResponse(
+        approved=approved,
+        skipped_voice_gate=skipped_voice,
+        failed=failed,
+        message=f"Approved {approved} review case(s); {skipped_voice} held at voice gate",
     )
 
 

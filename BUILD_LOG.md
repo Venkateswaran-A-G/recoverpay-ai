@@ -104,6 +104,13 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 
 ---
 
+### [Entry #20] Enterprise funnel, paid webhook, review queue
+- **Status**: 🟢 COMPLETE
+- **Component**: `backend/main.py` + `frontend/index.html`
+- **What happened**: Added HMAC-verified `payment_link.paid` reconciliation, stage funnel + failure breakdown on `/dashboard/metrics`, visual charts, and a Human Review Queue with batch approve (voice-gate rows skipped).
+
+---
+
 ### [Entry #19] Voice permission moved off the page center
 - **Status**: 🟢 COMPLETE
 - **Component**: `frontend/index.html`

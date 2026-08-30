@@ -115,6 +115,19 @@
       background: rgba(14, 165, 233, 0.14);
       color: inherit;
     }
+    .view-tab.active {
+      border-color: rgb(56, 189, 248);
+      background: rgba(14, 165, 233, 0.14);
+    }
+    .funnel-step {
+      position: relative;
+      min-height: 44px;
+    }
+    .funnel-fill {
+      height: 36px;
+      border-radius: 10px;
+      transition: width 400ms ease;
+    }
   </style>
 </head>
 <body class="text-slate-900 dark:text-slate-100 min-h-screen relative overflow-x-hidden">
@@ -127,6 +140,10 @@
       <div class="flex items-center gap-3">
         <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-sky-400 to-blue-700 shadow-[0_0_18px_rgba(56,189,248,0.45)]"></div>
         <h1 class="text-[15px] font-semibold tracking-tight">RazorpayX <span class="text-slate-500 dark:text-slate-400 font-medium">| RecoverPay AI Engine</span></h1>
+        <nav id="viewTabs" class="flex items-center gap-1 ml-2 sm:ml-4">
+          <button type="button" data-view="ops" class="view-tab active rounded-lg px-2.5 py-1.5 text-[11px] font-semibold border border-transparent">Operations</button>
+          <button type="button" data-view="review" class="view-tab rounded-lg px-2.5 py-1.5 text-[11px] font-semibold border border-transparent">Human Review Queue</button>
+        </nav>
       </div>
       <div class="flex items-center gap-3">
         <button id="testBadge" type="button" title="Driven by TEST_MODE env" class="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold tracking-[0.08em] uppercase text-sky-700 dark:text-sky-200 bg-sky-500/15 border border-sky-400/30 shadow-glow">
@@ -167,7 +184,21 @@
       </article>
     </section>
 
-    <section class="glass lift rounded-2xl px-4 py-3.5 mb-6 border-amber-500/30 bg-amber-500/10">
+    <section id="opsView" class="space-y-6">
+    <section class="grid grid-cols-1 xl:grid-cols-2 gap-3.5">
+      <article class="glass lift rounded-2xl p-4">
+        <h3 class="text-[13px] font-semibold mb-1">Stage-by-Stage Recovery Conversion Funnel</h3>
+        <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-3">At Risk ➔ AI Diagnosed ➔ Policy Approved ➔ Action Executed ➔ Recovered</p>
+        <div id="funnelChart" class="space-y-2"></div>
+      </article>
+      <article class="glass lift rounded-2xl p-4">
+        <h3 class="text-[13px] font-semibold mb-1">Failure Reason Breakdown</h3>
+        <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-3">Categorized from ingested failure codes</p>
+        <div id="breakdownChart" class="space-y-2.5"></div>
+      </article>
+    </section>
+
+    <section class="glass lift rounded-2xl px-4 py-3.5 border-amber-500/30 bg-amber-500/10">
       <div class="flex items-start gap-3">
         <div class="text-2xl leading-none drop-shadow-[0_8px_16px_rgba(245,158,11,0.45)]">🛡️</div>
         <div>
@@ -219,6 +250,19 @@
     </div>
     <section id="stream" class="space-y-2"></section>
     <div id="empty" class="glass rounded-2xl border-dashed border-slate-300 dark:border-slate-700 px-5 py-12 text-center text-[13px] text-slate-500 dark:text-slate-400">No recoveries yet. Run a 20-payment simulation across Karnataka, Tamil Nadu, Telangana, Maharashtra, and Delhi.</div>
+    </section>
+
+    <section id="reviewView" class="hidden">
+      <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-4">
+        <div>
+          <h2 class="text-[15px] font-semibold">Human Review Queue</h2>
+          <p class="text-[12px] text-slate-500 dark:text-slate-400 mt-1">Flagged &gt;₹5,000 auto-cap and &gt;₹20,000 voice permission cases. Voice calls are never batch-dialed.</p>
+        </div>
+        <button id="batchApproveBtn" type="button" class="lift rounded-lg px-3 py-1.5 text-[12px] font-semibold text-amber-800 dark:text-amber-200 bg-amber-500/15 border border-amber-500/40">Approve All Pending Reviews</button>
+      </div>
+      <section id="reviewStream" class="space-y-2"></section>
+      <div id="reviewEmpty" class="glass rounded-2xl border-dashed border-slate-300 dark:border-slate-700 px-5 py-12 text-center text-[13px] text-slate-500 dark:text-slate-400">No cases waiting for human review.</div>
+    </section>
   </main>
 
   <div id="scrim" class="hidden fixed inset-0 z-30 bg-black/55 backdrop-blur-sm"></div>
@@ -289,6 +333,7 @@
       { key: "LLM", label: "Regional LLM Diagnosis", match: ["LLM_DIAGNOSIS", "LLM_FALLBACK_TRIGGERED"] },
       { key: "DISPATCH", label: "Dispatch", match: ["DISPATCH", "PAYMENT_LINK_GEN"] },
       { key: "VOICE", label: "Voice Call", match: ["REAL_PHONE_VOICE_CALL_PLACED", "VOICE_CALL_PERMISSION_REQUIRED", "VOICE_CALL_DECLINED"] },
+      { key: "PAID", label: "Payment Evidence", match: ["PAYMENT_EVIDENCE_CONFIRMED"] },
     ];
     const PILL = {
       PENDING: "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
@@ -340,6 +385,75 @@
       $("mRecovered").textContent = formatINR(data.recovered_revenue);
       $("mRate").textContent = Number(data.recovery_rate_percent || 0).toFixed(2) + "%";
       $("mRoi").textContent = Number(data.net_roi || 0).toFixed(2) + "x";
+      renderFunnel(data);
+      renderBreakdown(data.failure_breakdown || {});
+    }
+
+    const FUNNEL_STEPS = [
+      { key: "failed_ingested", label: "At Risk", color: "bg-rose-500/80" },
+      { key: "ai_diagnosed", label: "AI Diagnosed", color: "bg-sky-500/80" },
+      { key: "policy_approved", label: "Policy Approved", color: "bg-amber-500/80" },
+      { key: "action_executed", label: "Action Executed", color: "bg-violet-500/80" },
+      { key: "payment_verified", label: "Recovered", color: "bg-emerald-500/80" },
+    ];
+    const BREAKDOWN_LABELS = {
+      TEMPORARY_BANK_DEGRADATION: "Temporary Bank Degradation",
+      AUTHENTICATION_ISSUE: "Authentication Issue",
+      INSUFFICIENT_FUNDS: "Insufficient Funds",
+      EXPIRED_METHOD: "Expired Method",
+      CHECKOUT_ABANDONMENT: "Checkout Abandonment",
+    };
+    const BREAKDOWN_COLORS = {
+      TEMPORARY_BANK_DEGRADATION: "bg-orange-500/80",
+      AUTHENTICATION_ISSUE: "bg-sky-500/80",
+      INSUFFICIENT_FUNDS: "bg-rose-500/80",
+      EXPIRED_METHOD: "bg-amber-500/80",
+      CHECKOUT_ABANDONMENT: "bg-slate-400/80",
+    };
+
+    function renderFunnel(data) {
+      const root = $("funnelChart");
+      if (!root) return;
+      const funnel = data.funnel || data;
+      const max = Math.max(1, Number(funnel.failed_ingested || data.failed_ingested || 0));
+      root.innerHTML = FUNNEL_STEPS.map((step, i) => {
+        const n = Number(funnel[step.key] ?? data[step.key] ?? 0);
+        const pct = Math.max(8, Math.round((n / max) * 100));
+        const arrow = i < FUNNEL_STEPS.length - 1 ? `<span class="text-[10px] text-slate-400">➔</span>` : "";
+        return `<div class="funnel-step">
+          <div class="flex items-center justify-between text-[11px] mb-1">
+            <span class="font-semibold">${step.label}</span>
+            <span class="font-mono">${n}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="flex-1 h-9 rounded-xl bg-slate-100 dark:bg-slate-800/80 overflow-hidden">
+              <div class="funnel-fill ${step.color}" style="width:${pct}%"></div>
+            </div>
+            ${arrow}
+          </div>
+        </div>`;
+      }).join("");
+    }
+
+    function renderBreakdown(breakdown) {
+      const root = $("breakdownChart");
+      if (!root) return;
+      const keys = Object.keys(BREAKDOWN_LABELS);
+      const max = Math.max(1, ...keys.map((k) => Number(breakdown[k] || 0)));
+      root.innerHTML = keys.map((key) => {
+        const n = Number(breakdown[key] || 0);
+        const pct = Math.max(n ? 6 : 0, Math.round((n / max) * 100));
+        return `<div>
+          <div class="flex items-center justify-between text-[11px] mb-1">
+            <span class="font-semibold">${BREAKDOWN_LABELS[key]}</span>
+            <span class="font-mono">${n}</span>
+          </div>
+          <div class="h-2.5 rounded-full bg-slate-100 dark:bg-slate-800/80 overflow-hidden">
+            <div class="h-full ${BREAKDOWN_COLORS[key]}" style="width:${pct}%"></div>
+          </div>
+          <div class="font-mono text-[9px] text-slate-400 mt-0.5">${key}</div>
+        </div>`;
+      }).join("");
     }
 
     function matchesAmount(amount) {
@@ -429,6 +543,44 @@
     async function loadTransactions() {
       allTxns = await (await fetch("/api/v1/transactions?limit=200", { headers: { "X-API-KEY": "demo_dashboard_key" } })).json();
       applyFilters();
+      renderReviewQueue();
+    }
+
+    function reviewQueueTxns() {
+      return allTxns.filter((t) =>
+        t.recovery_status === "FLAGGED_FOR_APPROVAL" || t.recovery_status === "REQUIRES_VOICE_CALL_PERMISSION"
+      );
+    }
+
+    function renderReviewQueue() {
+      const rows = reviewQueueTxns();
+      const stream = $("reviewStream");
+      const empty = $("reviewEmpty");
+      if (!stream || !empty) return;
+      stream.innerHTML = "";
+      empty.style.display = rows.length ? "none" : "block";
+      rows.forEach((txn) => {
+        const voice = txn.recovery_status === "REQUIRES_VOICE_CALL_PERMISSION";
+        const article = document.createElement("article");
+        article.className = "glass lift rounded-xl px-3.5 py-3 grid gap-3 items-center md:grid-cols-[1.2fr_1fr_140px_1fr]";
+        article.innerHTML = `
+          <div>
+            <div class="text-sm font-semibold">${escapeHtml(txn.customer_name || "Customer")}</div>
+            <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">${escapeHtml(txn.customer_phone || "")}</div>
+          </div>
+          <div>
+            <div class="font-mono text-[12px]">${formatINR(txn.amount)}</div>
+            <div class="text-[11px] text-slate-500">${escapeHtml(txn.failure_code || "")}</div>
+          </div>
+          <div><span class="inline-block rounded-full px-2 py-1 text-[10px] font-semibold ${PILL[txn.recovery_status] || PILL.PENDING}">${prettyStatus(txn.recovery_status)}</span></div>
+          <div class="flex flex-wrap gap-1.5 justify-end">
+            ${voice
+              ? `<span class="text-[11px] text-rose-700 dark:text-rose-300 font-semibold">Use left notification to accept/decline call</span>`
+              : `<button class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-amber-800 dark:text-amber-300 bg-amber-500/15 border border-amber-500/40" data-approve="${txn.id}">Approve &amp; Send</button>`}
+            <button class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold bg-white/80 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800/80" data-inspect="${txn.id}">Inspect Audit</button>
+          </div>`;
+        stream.appendChild(article);
+      });
     }
 
     function pendingVoiceTxn() {
@@ -554,27 +706,37 @@
       $("scrim").classList.remove("open");
     }
 
-    $("approveAllBtn").addEventListener("click", async () => {
-      const btn = $("approveAllBtn");
-      const flagged = allTxns.filter(t => t.recovery_status === "FLAGGED_FOR_APPROVAL" && Number(t.amount) <= 20000);
-      if (!flagged.length) return;
+    async function batchApproveReviews(btn) {
+      if (!btn) return;
       btn.disabled = true;
+      const prev = btn.textContent;
       btn.textContent = "Approving…";
-      let done = 0, failed = 0;
-      for (const txn of flagged) {
-        try {
-          const res = await fetch("/api/v1/guardrails/approve/" + txn.id, {
-            method: "POST",
-            headers: { "X-API-KEY": "demo_dashboard_key" },
-          });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.detail || "failed");
-          done++;
-        } catch (_) { failed++; }
+      try {
+        const res = await fetch("/api/v1/guardrails/approve-all", {
+          method: "POST",
+          headers: { "X-API-KEY": "demo_dashboard_key" },
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Batch approve failed");
+        toast(data.message || `Approved ${data.approved} review case(s)`);
+        await refresh();
+      } catch (err) {
+        toast(String(err.message || err));
+      } finally {
+        btn.disabled = false;
+        btn.textContent = prev;
       }
-      toast(`✅ Approved ${done} transaction${done !== 1 ? "s" : ""}${failed ? ` · ${failed} failed` : ""}`);
-      btn.disabled = false;
-      await refresh();
+    }
+    $("approveAllBtn").addEventListener("click", () => batchApproveReviews($("approveAllBtn")));
+    $("batchApproveBtn").addEventListener("click", () => batchApproveReviews($("batchApproveBtn")));
+
+    $("viewTabs").addEventListener("click", (e) => {
+      const tab = e.target.closest("[data-view]");
+      if (!tab) return;
+      const view = tab.getAttribute("data-view");
+      $("opsView").classList.toggle("hidden", view !== "ops");
+      $("reviewView").classList.toggle("hidden", view !== "review");
+      $("viewTabs").querySelectorAll(".view-tab").forEach((el) => el.classList.toggle("active", el === tab));
     });
 
     $("simulateBtn").addEventListener("click", async () => {
@@ -596,6 +758,25 @@
       } finally {
         btn.disabled = false;
         btn.textContent = "Simulate 20 Failed Payments";
+      }
+    });
+
+    $("reviewStream").addEventListener("click", async (e) => {
+      const inspect = e.target.closest("[data-inspect]");
+      const approve = e.target.closest("[data-approve]");
+      if (inspect) openAudit(inspect.getAttribute("data-inspect"));
+      if (approve) {
+        approve.disabled = true;
+        try {
+          const res = await fetch("/api/v1/guardrails/approve/" + approve.getAttribute("data-approve"), { method: "POST", headers: { "X-API-KEY": "demo_dashboard_key" } });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || "Approve failed");
+          toast("Approved and dispatched · " + (data.language_register || "regional copy"));
+          await refresh();
+        } catch (err) {
+          toast(String(err.message || err));
+          approve.disabled = false;
+        }
       }
     });
 

@@ -46,6 +46,7 @@ class AuditStepName(str, Enum):
     REAL_PHONE_VOICE_CALL_PLACED = "REAL_PHONE_VOICE_CALL_PLACED"
     VOICE_CALL_PERMISSION_REQUIRED = "VOICE_CALL_PERMISSION_REQUIRED"
     VOICE_CALL_DECLINED = "VOICE_CALL_DECLINED"
+    PAYMENT_EVIDENCE_CONFIRMED = "PAYMENT_EVIDENCE_CONFIRMED"
 
 
 class AuditStepStatus(str, Enum):
@@ -239,6 +240,23 @@ class GuardrailEvaluationResult(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+class RecoveryFunnel(BaseModel):
+    failed_ingested: int = 0
+    ai_diagnosed: int = 0
+    policy_approved: int = 0
+    action_executed: int = 0
+    payment_verified: int = 0
+
+
+FAILURE_BREAKDOWN_KEYS = (
+    "TEMPORARY_BANK_DEGRADATION",
+    "AUTHENTICATION_ISSUE",
+    "INSUFFICIENT_FUNDS",
+    "EXPIRED_METHOD",
+    "CHECKOUT_ABANDONMENT",
+)
+
+
 class DashboardMetrics(BaseModel):
     total_failed_volume: Decimal = Decimal("0.00")
     recovered_revenue: Decimal = Decimal("0.00")
@@ -250,6 +268,13 @@ class DashboardMetrics(BaseModel):
     flagged_for_approval_count: int = 0
     opted_out_count: int = 0
     max_retries_reached_count: int = 0
+    funnel: RecoveryFunnel = Field(default_factory=RecoveryFunnel)
+    failed_ingested: int = 0
+    ai_diagnosed: int = 0
+    policy_approved: int = 0
+    action_executed: int = 0
+    payment_verified: int = 0
+    failure_breakdown: dict[str, int] = Field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -371,6 +396,21 @@ class ApproveResponse(BaseModel):
     recovery_status: str
     requires_human_approval: bool = False
     language_register: Optional[str] = None
+    message: str
+
+
+class ApproveAllResponse(BaseModel):
+    approved: int
+    skipped_voice_gate: int = 0
+    failed: int = 0
+    message: str
+
+
+class PaidWebhookResponse(BaseModel):
+    accepted: bool
+    transaction_id: Optional[str] = None
+    recovery_status: Optional[str] = None
+    already_processed: bool = False
     message: str
 
 

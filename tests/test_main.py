@@ -110,6 +110,10 @@ def test_dashboard_served_at_root(client):
     assert "filteredTxns" in response.text
     assert 'if (!res.ok)' in response.text
     assert "Simulation failed" in response.text
+    assert "Stage-by-Stage Recovery Conversion Funnel" in response.text
+    assert "Failure Reason Breakdown" in response.text
+    assert "Human Review Queue" in response.text
+    assert "TEMPORARY_BANK_DEGRADATION" in response.text
 
 
 def test_webhook_rejects_invalid_hmac(client):
@@ -222,6 +226,16 @@ def test_audit_logs_detail_and_metrics_and_batch(client):
     metrics = test_client.get("/api/v1/dashboard/metrics", headers={"X-API-KEY": "demo_dashboard_key"}).json()
     assert metrics["total_transactions"] >= 10
     assert float(metrics["total_failed_volume"]) > 0
+    assert metrics["failed_ingested"] == metrics["total_transactions"]
+    assert "funnel" in metrics
+    assert metrics["funnel"]["failed_ingested"] == metrics["failed_ingested"]
+    assert set(metrics["failure_breakdown"]) == {
+        "TEMPORARY_BANK_DEGRADATION",
+        "AUTHENTICATION_ISSUE",
+        "INSUFFICIENT_FUNDS",
+        "EXPIRED_METHOD",
+        "CHECKOUT_ABANDONMENT",
+    }
 
     txns = test_client.get("/api/v1/transactions", headers={"X-API-KEY": "demo_dashboard_key"}).json()
     detail = test_client.get(f"/api/v1/audit-logs/{txns[0]['id']}", headers={"X-API-KEY": "demo_dashboard_key"})
@@ -307,4 +321,83 @@ def test_batch_simulator_exactly_one_voice_permission_txn(client):
     assert float(over_20k[0]["amount"]) in {25000.0, 35000.0, 45000.0}
     assert over_20k[0]["recovery_status"] == RecoveryStatus.REQUIRES_VOICE_CALL_PERMISSION.value
     assert all(t["recovery_status"] != RecoveryStatus.VOICE_CALL_DISPATCHED.value for t in txns)
+
+
+def _paid_body(txn_id: str, payment_id: str = "pay_recovered_1") -> dict:
+    return {
+        "entity": "event",
+        "event": "payment_link.paid",
+        "payload": {
+            "payment_link": {
+                "entity": {
+                    "id": "plink_test",
+                    "short_url": f"https://rzp.io/l/{txn_id.replace('-', '')[:12]}",
+                    "notes": {"recoverpay_txn_id": txn_id},
+                    "reference_id": txn_id,
+                }
+            },
+            "payment": {
+                "entity": {
+                    "id": payment_id,
+                    "amount": 149900,
+                    "currency": "INR",
+                    "status": "captured",
+                }
+            },
+        },
+    }
+
+
+def test_razorpay_paid_webhook_rejects_invalid_hmac(client):
+    test_client, _ = client
+    body = json.dumps(_paid_body("missing")).encode()
+    response = test_client.post(
+        "/api/v1/webhooks/razorpay-paid",
+        content=body,
+        headers={"Content-Type": "application/json", "X-Razorpay-Signature": "deadbeef"},
+    )
+    assert response.status_code == 401
+
+
+def test_razorpay_paid_webhook_marks_recovered(client):
+    test_client, _ = client
+    ingest_payload = _webhook_body(entity_overrides={"id": "pay_to_recover"})
+    ingest_body = json.dumps(ingest_payload).encode()
+    ingest = test_client.post(
+        "/api/v1/webhooks/razorpay",
+        content=ingest_body,
+        headers={"Content-Type": "application/json", "X-Razorpay-Signature": _sign(ingest_body)},
+    )
+    txn_id = ingest.json()["transaction_id"]
+    paid = json.dumps(_paid_body(txn_id)).encode()
+    response = test_client.post(
+        "/api/v1/webhooks/razorpay-paid",
+        content=paid,
+        headers={"Content-Type": "application/json", "X-Razorpay-Signature": _sign(paid)},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["recovery_status"] == RecoveryStatus.RECOVERED.value
+    detail = test_client.get(f"/api/v1/audit-logs/{txn_id}", headers={"X-API-KEY": "demo_dashboard_key"})
+    steps = {row["step_name"] for row in detail.json()["audit_logs"]}
+    assert "PAYMENT_EVIDENCE_CONFIRMED" in steps
+    metrics = test_client.get("/api/v1/dashboard/metrics", headers={"X-API-KEY": "demo_dashboard_key"}).json()
+    assert metrics["payment_verified"] >= 1
+
+
+def test_approve_all_pending_reviews(client):
+    test_client, _ = client
+    payload = _webhook_body(entity_overrides={"id": "pay_flag_batch", "amount": 750000})
+    body = json.dumps(payload).encode()
+    test_client.post(
+        "/api/v1/webhooks/razorpay",
+        content=body,
+        headers={"Content-Type": "application/json", "X-Razorpay-Signature": _sign(body)},
+    )
+    result = test_client.post(
+        "/api/v1/guardrails/approve-all",
+        headers={"X-API-KEY": "demo_dashboard_key"},
+    )
+    assert result.status_code == 200
+    assert result.json()["approved"] >= 1
 
