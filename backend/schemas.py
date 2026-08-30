@@ -16,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 # --- Guardrail constants (deterministic, non-LLM) ---
 FINANCIAL_THRESHOLD_INR = Decimal("5000.00")
+VOICE_CALL_THRESHOLD_INR = Decimal("20000.00")
 MAX_RETRY_COUNT = 2
 
 
@@ -30,6 +31,7 @@ class RecoveryStatus(str, Enum):
     PENDING_RETRY = "PENDING_RETRY"
     BANK_OUTAGE_HOLD = "BANK_OUTAGE_HOLD"
     RETRY_SCHEDULED_POST_BANK_RECOVERY = "RETRY_SCHEDULED_POST_BANK_RECOVERY"
+    VOICE_CALL_DISPATCHED = "VOICE_CALL_DISPATCHED"
 
 
 class AuditStepName(str, Enum):
@@ -39,6 +41,7 @@ class AuditStepName(str, Enum):
     GUARDRAIL_CHECK = "GUARDRAIL_CHECK"
     PAYMENT_LINK_GEN = "PAYMENT_LINK_GEN"
     DISPATCH = "DISPATCH"
+    REAL_PHONE_VOICE_CALL_PLACED = "REAL_PHONE_VOICE_CALL_PLACED"
 
 
 class AuditStepStatus(str, Enum):

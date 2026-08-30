@@ -229,3 +229,43 @@ def test_audit_logs_detail_and_metrics_and_batch(client):
     graph = detail.json()["execution_graph"]
     assert graph
     assert graph[0]["step_name"] == "INGESTION"
+
+
+def test_voice_approve_and_call_high_value(client):
+    test_client, _ = client
+    payload = _webhook_body(entity_overrides={"id": "pay_voice", "amount": 2500000})
+    body = json.dumps(payload).encode()
+    ingest = test_client.post(
+        "/api/v1/webhooks/razorpay",
+        content=body,
+        headers={"Content-Type": "application/json", "X-Razorpay-Signature": _sign(body)},
+    )
+    assert ingest.status_code == 202
+    txn_id = ingest.json()["transaction_id"]
+    assert ingest.json()["recovery_status"] == RecoveryStatus.FLAGGED_FOR_APPROVAL.value
+
+    too_low = _webhook_body(entity_overrides={"id": "pay_voice_low", "amount": 750000})
+    low_body = json.dumps(too_low).encode()
+    low_ingest = test_client.post(
+        "/api/v1/webhooks/razorpay",
+        content=low_body,
+        headers={"Content-Type": "application/json", "X-Razorpay-Signature": _sign(low_body)},
+    )
+    low_id = low_ingest.json()["transaction_id"]
+    blocked = test_client.post(
+        f"/api/v1/voice/approve-and-call/{low_id}",
+        headers={"X-API-KEY": "demo_dashboard_key"},
+    )
+    assert blocked.status_code == 409
+
+    approve = test_client.post(
+        f"/api/v1/voice/approve-and-call/{txn_id}",
+        headers={"X-API-KEY": "demo_dashboard_key"},
+    )
+    assert approve.status_code == 200
+    data = approve.json()
+    assert data["recovery_status"] == RecoveryStatus.VOICE_CALL_DISPATCHED.value
+
+    detail = test_client.get(f"/api/v1/audit-logs/{txn_id}", headers={"X-API-KEY": "demo_dashboard_key"})
+    steps = {row["step_name"] for row in detail.json()["audit_logs"]}
+    assert "REAL_PHONE_VOICE_CALL_PLACED" in steps

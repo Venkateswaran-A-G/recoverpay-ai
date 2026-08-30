@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from backend.agent import build_rich_whatsapp_message, diagnose_failure, send_green_api_message
 from backend.database import get_db, init_db
-from backend.guardrails import evaluate_guardrails
+from backend.guardrails import evaluate_guardrails, is_opted_out
 from backend.models import AuditLog, OptOutRegistry, Transaction
 from backend.razorpay_client import (
     generate_payment_link,
@@ -40,6 +40,7 @@ from backend.schemas import (
     RecoveryCopyRequest,
     RecoveryStatus,
     TransactionAuditDetail,
+    VOICE_CALL_THRESHOLD_INR,
     TransactionPublic,
     WebhookIngestResponse,
     mask_email,
@@ -742,6 +743,99 @@ def approve_high_value(
     )
 
 
+def _place_twilio_voice_call() -> str:
+    """Place a live Twilio Voice call to the merchant-approved recovery number."""
+    if is_test_mode():
+        return "CA_TEST_MODE_SKIPPED"
+
+    account_sid = os.getenv("TWILIO_ACCOUNT_SID", "").strip()
+    auth_token = os.getenv("TWILIO_AUTH_TOKEN", "").strip()
+    if not account_sid or not auth_token:
+        raise HTTPException(status_code=503, detail="Twilio Voice credentials are not configured")
+
+    twiml = (
+        '<Response><Say voice="Polly.Aditi" language="en-IN">'
+        "Namaskara! Your payment of 25,000 rupees for KetoKrafts timed out. "
+        "We have sent a 1-click UPI recovery link to your WhatsApp. "
+        "Please check your phone to authorize your order."
+        "</Say></Response>"
+    )
+    # Trial accounts reject the inline `twiml=` parameter; host the same TwiML via Twimlets.
+    from urllib.parse import quote
+
+    twiml_url = "https://twimlets.com/echo?Twiml=" + quote(twiml)
+    try:
+        from twilio.rest import Client as TwilioClient  # type: ignore[import-untyped]
+
+        client = TwilioClient(account_sid, auth_token)
+        try:
+            call = client.calls.create(
+                to="+919148001667",
+                from_="+17372212163",
+                twiml=twiml,
+            )
+        except Exception:
+            call = client.calls.create(
+                to="+919148001667",
+                from_="+17372212163",
+                url=twiml_url,
+            )
+        return str(call.sid)
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"Twilio Voice call failed: {exc}") from exc
+
+
+@app.post("/api/v1/voice/approve-and-call/{transaction_id}", response_model=ApproveResponse)
+def approve_and_place_voice_call(
+    transaction_id: str,
+    db: Session = Depends(get_db),
+    x_api_key: str | None = Header(default=None, alias="X-API-KEY"),
+) -> ApproveResponse:
+    """Merchant-approved live phone call for failures above ₹20,000."""
+    _dashboard_authorized(x_api_key)
+    txn = db.get(Transaction, transaction_id)
+    if txn is None:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if Decimal(txn.amount) <= VOICE_CALL_THRESHOLD_INR:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Voice call requires amount > ₹{VOICE_CALL_THRESHOLD_INR}",
+        )
+    if txn.recovery_status != RecoveryStatus.FLAGGED_FOR_APPROVAL.value:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Transaction is {txn.recovery_status}, not FLAGGED_FOR_APPROVAL",
+        )
+    if is_opted_out(db, txn.customer_phone):
+        raise HTTPException(status_code=409, detail="Customer is opted out — voice call blocked")
+
+    call_sid = _place_twilio_voice_call()
+    language_register, _ = dispatch_recovery(db, txn)
+    txn.recovery_status = RecoveryStatus.VOICE_CALL_DISPATCHED.value
+    write_audit(
+        db,
+        transaction_id=txn.id,
+        step_name=AuditStepName.REAL_PHONE_VOICE_CALL_PLACED.value,
+        step_status=AuditStepStatus.SUCCESS.value,
+        raw_payload={
+            "channel": "twilio_voice",
+            "call_sid": call_sid,
+            "to": os.getenv("MY_PERSONAL_WHATSAPP"),
+            "from": os.getenv("TWILIO_PHONE_NUMBER"),
+        },
+    )
+    db.commit()
+    return ApproveResponse(
+        transaction_id=txn.id,
+        recovery_status=txn.recovery_status,
+        requires_human_approval=False,
+        language_register=language_register,
+        message=f"Voice call placed ({call_sid}) and WhatsApp recovery dispatched",
+    )
+
+
 @app.post("/api/v1/simulator/run-batch", response_model=BatchSimulatorResponse)
 def run_batch_simulator(
     count: int = Query(default=20, ge=1, le=100),
@@ -765,7 +859,7 @@ def run_batch_simulator(
         if index % 7 == 0:
             amount = Decimal("7500.00")
         elif index % 11 == 0:
-            amount = Decimal("12000.00")
+            amount = Decimal("25000.00")
         elif index % 5 == 0:
             retry_count = 2
         if index % 13 == 0:

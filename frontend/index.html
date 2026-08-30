@@ -179,6 +179,7 @@
         <button type="button" data-status="RECOVERY_DISPATCHED" class="chip rounded-full px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800">📩 Dispatched</button>
         <button type="button" data-status="OPTED_OUT" class="chip rounded-full px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800">⛔ Opted-Out</button>
         <button type="button" data-status="BANK_OUTAGE_HOLD" class="chip rounded-full px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800">🏦 Bank Outage Hold</button>
+        <button type="button" data-status="VOICE_CALL_DISPATCHED" class="chip rounded-full px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800">📞 Voice Dispatched</button>
       </div>
       <div class="flex flex-wrap gap-1.5" id="regionFilters">
         <button type="button" data-region="all" class="chip active rounded-full px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800">All Regions</button>
@@ -256,6 +257,7 @@
       { key: "GUARDRAIL_CHECK", label: "Guardrails", match: ["GUARDRAIL_CHECK"] },
       { key: "LLM", label: "Regional LLM Diagnosis", match: ["LLM_DIAGNOSIS", "LLM_FALLBACK_TRIGGERED"] },
       { key: "DISPATCH", label: "Dispatch", match: ["DISPATCH", "PAYMENT_LINK_GEN"] },
+      { key: "VOICE", label: "Voice Call", match: ["REAL_PHONE_VOICE_CALL_PLACED"] },
     ];
     const PILL = {
       PENDING: "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
@@ -267,6 +269,7 @@
       MAX_RETRIES_REACHED: "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
       BANK_OUTAGE_HOLD: "bg-orange-500/15 text-orange-700 dark:text-orange-300",
       RETRY_SCHEDULED_POST_BANK_RECOVERY: "bg-purple-500/15 text-purple-700 dark:text-purple-300",
+      VOICE_CALL_DISPATCHED: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
     };
 
     let allTxns = [];
@@ -352,10 +355,18 @@
         : "Waiting for a batch";
       rows.forEach((txn) => {
         const high = Number(txn.amount) > 5000 || txn.recovery_status === "FLAGGED_FOR_APPROVAL";
+        const voiceHigh = Number(txn.amount) > 20000;
         const flagged = txn.recovery_status === "FLAGGED_FOR_APPROVAL";
         const row = document.createElement("article");
-        row.className = "glass lift rounded-xl px-3.5 py-3 grid gap-3 items-center md:grid-cols-[1.1fr_1.2fr_1.1fr_140px_1fr]" + (high ? " border-amber-500/40 bg-amber-500/10" : "");
+        row.className = "glass lift rounded-xl px-3.5 py-3 grid gap-3 items-center md:grid-cols-[1.1fr_1.2fr_1.1fr_140px_1fr]" + (voiceHigh ? " border-rose-500/40 bg-rose-500/10" : high ? " border-amber-500/40 bg-amber-500/10" : "");
+        const voiceBanner = voiceHigh
+          ? `<div class="md:col-span-5 rounded-lg px-3 py-2 text-[11px] font-semibold text-rose-800 dark:text-rose-200 bg-rose-500/15 border border-rose-500/30">🚨 HIGH-VALUE FAILURE (₹25,000): Requesting Merchant Permission for AI Voice Call to Customer</div>`
+          : "";
+        const voiceBtn = (flagged && voiceHigh)
+          ? `<button class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-rose-800 dark:text-rose-200 bg-rose-500/20 border border-rose-500/40" data-voice-call="${txn.id}">📞 Approve &amp; Dial Real Mobile Phone</button>`
+          : "";
         row.innerHTML = `
+          ${voiceBanner}
           <div>
             <div class="text-sm font-semibold">${escapeHtml(txn.customer_name || "Customer")}</div>
             <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">${escapeHtml(txn.customer_phone || "")}</div>
@@ -367,7 +378,8 @@
           </div>
           <div><span class="inline-block rounded-full px-2 py-1 text-[10px] font-semibold ${PILL[txn.recovery_status] || PILL.PENDING}">${prettyStatus(txn.recovery_status)}</span></div>
           <div class="flex flex-wrap gap-1.5 justify-end">
-            ${flagged ? `<button class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-amber-800 dark:text-amber-300 bg-amber-500/15 border border-amber-500/40" data-approve="${txn.id}">🚨 Approve &amp; Send (&gt;₹5K)</button>` : ""}
+            ${voiceBtn}
+            ${flagged && !voiceHigh ? `<button class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-amber-800 dark:text-amber-300 bg-amber-500/15 border border-amber-500/40" data-approve="${txn.id}">🚨 Approve &amp; Send (&gt;₹5K)</button>` : ""}
             <button class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold bg-white/80 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800/80" data-inspect="${txn.id}">Inspect Audit</button>
           </div>`;
         stream.appendChild(row);
@@ -377,7 +389,7 @@
     function applyFilters() {
       renderRows(filteredTxns());
       // Show "Approve All" only when there are flagged transactions
-      const flaggedCount = allTxns.filter(t => t.recovery_status === "FLAGGED_FOR_APPROVAL").length;
+      const flaggedCount = allTxns.filter(t => t.recovery_status === "FLAGGED_FOR_APPROVAL" && Number(t.amount) <= 20000).length;
       const btn = $("approveAllBtn");
       if (flaggedCount > 0) {
         btn.classList.remove("hidden");
@@ -455,7 +467,7 @@
 
     $("approveAllBtn").addEventListener("click", async () => {
       const btn = $("approveAllBtn");
-      const flagged = allTxns.filter(t => t.recovery_status === "FLAGGED_FOR_APPROVAL");
+      const flagged = allTxns.filter(t => t.recovery_status === "FLAGGED_FOR_APPROVAL" && Number(t.amount) <= 20000);
       if (!flagged.length) return;
       btn.disabled = true;
       btn.textContent = "Approving…";
@@ -501,7 +513,29 @@
     $("stream").addEventListener("click", async (e) => {
       const inspect = e.target.closest("[data-inspect]");
       const approve = e.target.closest("[data-approve]");
+      const voiceCall = e.target.closest("[data-voice-call]");
       if (inspect) openAudit(inspect.getAttribute("data-inspect"));
+      if (voiceCall) {
+        voiceCall.disabled = true;
+        const prev = voiceCall.textContent;
+        voiceCall.textContent = "📞 Dialing +91 91480 01667...";
+        toast("📞 Dialing +91 91480 01667...");
+        try {
+          const res = await fetch("/api/v1/voice/approve-and-call/" + voiceCall.getAttribute("data-voice-call"), {
+            method: "POST",
+            headers: { "X-API-KEY": "demo_dashboard_key" },
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || "Voice call failed");
+          toast("📞 Call placed · " + (data.message || "VOICE_CALL_DISPATCHED"));
+          await refresh();
+        } catch (err) {
+          toast(String(err.message || err));
+          voiceCall.disabled = false;
+          voiceCall.textContent = prev;
+        }
+        return;
+      }
       if (approve) {
         approve.disabled = true;
         try {

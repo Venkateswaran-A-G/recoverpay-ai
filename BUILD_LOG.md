@@ -104,6 +104,14 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 
 ---
 
+### [Entry #17] Twilio Voice live call for > ₹20,000
+- **Status**: 🟢 COMPLETE
+- **Component**: `backend/main.py` + `frontend/index.html`
+- **What happened**: Merchant-approved Twilio Voice call to `+919148001667` from `+17372212163` with Polly.Aditi TwiML. Status `VOICE_CALL_DISPATCHED`, audit `REAL_PHONE_VOICE_CALL_PLACED`. Simulator emits ₹25,000 failures. `TEST_MODE=true` returns `CA_TEST_MODE_SKIPPED` so pytest does not place live calls.
+- **Trial-account note**: Twilio trial rejects inline `twiml=` (`Invalid or disallowed parameters`). Fallback uses the same TwiML via `https://twimlets.com/echo?Twiml=...` so the live call still connects.
+
+---
+
 ### [Entry #16] WhatsApp Phone Simulator
 - **Status**: 🟢 COMPLETE
 - **Component**: `frontend/index.html` + `backend/main.py`

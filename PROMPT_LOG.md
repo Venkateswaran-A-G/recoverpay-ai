@@ -132,6 +132,18 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
 
 ---
 
+### [Prompt #24] - Twilio Voice API for live phone recovery
+- **Timestamp**: 2026-08-30 / Twilio Voice
+- **Exact User Prompt**: "Update .env with Twilio credentials. Implement POST /api/v1/voice/approve-and-call/{transaction_id} for transactions > ₹20,000 using Twilio Voice + Polly.Aditi. Dashboard banner and Approve & Dial button. Status VOICE_CALL_DISPATCHED and audit REAL_PHONE_VOICE_CALL_PLACED."
+- **Files Created / Modified**:
+  - `.env` (local only, gitignored) + `.env.example` (Twilio placeholders)
+  - `backend/schemas.py` (`VOICE_CALL_THRESHOLD_INR`, `VOICE_CALL_DISPATCHED`, `REAL_PHONE_VOICE_CALL_PLACED`)
+  - `backend/main.py` (`_place_twilio_voice_call`, `POST /api/v1/voice/approve-and-call/{id}`, simulator ₹25,000 cases)
+  - `frontend/index.html` (urgent banner + dial button)
+- **Actions Executed**: `pip install twilio`. `pytest` run. Committed and pushed (`.env` not committed).
+
+---
+
 ### [Prompt #22] - Fix bank widget position and light/dark theme
 - **Timestamp**: 2026-08-30 / Bank widget UI fix
 - **Exact User Prompt**: "see bank icon is floating in the middle of the screen and it change the website to light mode the bank is still in dark mode"
@@ -230,3 +242,18 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `.env` / `.env.example` — only 7 original core keys (no Twilio, no Whapi, no CallMeBot vars)
   - `scripts/smoke_api.py` — added `X-API-KEY` header to all protected endpoint calls
 - **Tests**: 30 passed
+
+---
+
+### [Prompt #24] - Twilio Voice API for live real phone call recovery
+- **Timestamp**: 2026-08-30 / Twilio Voice
+- **Exact User Prompt**: "Hello! Read @AGENTS.md, @backend/guardrails.py, @backend/main.py, and @frontend/index.html first. 1. Please update .env in the root folder with these exact Twilio credentials: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER=+17372212163, MY_PERSONAL_WHATSAPP=+919148001667. 2. Implement Real Phone Calling in backend/main.py for transactions > ₹20,000: POST /api/v1/voice/approve-and-call/{transaction_id}, Twilio Client.calls.create to=+919148001667 from_=+17372212163 with Polly.Aditi TwiML. Status VOICE_CALL_DISPATCHED, audit REAL_PHONE_VOICE_CALL_PLACED. 3. Update Dashboard UI: urgent banner, Approve & Dial Real Mobile Phone button, Dialing +91 91480 01667... status. Test at http://localhost:8000. Log this prompt in PROMPT_LOG.md and git commit with message 'feat: integrate Twilio Voice API for live real phone call recovery' and push to main."
+- **Files Created / Modified**:
+  - `.env` (local only, gitignored) — Twilio SID/token/from + MY_PERSONAL_WHATSAPP
+  - `.env.example` — Twilio Voice placeholders
+  - `backend/schemas.py` — `VOICE_CALL_THRESHOLD_INR`, `VOICE_CALL_DISPATCHED`, `REAL_PHONE_VOICE_CALL_PLACED`
+  - `backend/main.py` — `_place_twilio_voice_call()`, `POST /api/v1/voice/approve-and-call/{id}`, simulator ₹25,000 cases
+  - `frontend/index.html` — urgent banner + Approve & Dial button + Dialing toast
+  - `tests/test_main.py` — voice approve-and-call coverage (TEST_MODE skips live Twilio)
+  - `PROMPT_LOG.md`, `BUILD_LOG.md`
+- **Actions Executed**: `pip install twilio`. `pytest`. Dashboard/API smoke on localhost:8000. Committed and pushed (`.env` not committed).
