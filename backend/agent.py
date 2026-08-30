@@ -383,18 +383,43 @@ def send_live_whatsapp_message(to_phone: str, message_text: str) -> bool:
     # Normalise the destination: ensure "whatsapp:" prefix
     destination = to_phone if to_phone.startswith("whatsapp:") else f"whatsapp:{to_phone}"
 
+    content_sid = os.getenv("TWILIO_CONTENT_SID", "").strip()
+
     try:
+        import json as _json
+
         from twilio.rest import Client as TwilioClient  # type: ignore[import-untyped]
 
         client = TwilioClient(account_sid, auth_token)
-        msg = client.messages.create(
-            body=message_text,
-            from_=from_number,
-            to=destination,
-        )
+
+        if content_sid:
+            # Use pre-approved template; pass message as variable {{1}} if template supports it
+            msg = client.messages.create(
+                from_=from_number,
+                to=destination,
+                content_sid=content_sid,
+                content_variables=_json.dumps({"1": message_text[:1600]}),
+            )
+        else:
+            # Free-form body (works when 24h session is open and account allows it)
+            msg = client.messages.create(
+                body=message_text,
+                from_=from_number,
+                to=destination,
+            )
         print(f"[Twilio] Message sent → SID={msg.sid} status={msg.status}", file=sys.stderr)
         return True
     except Exception as exc:  # noqa: BLE001
+        # If ContentSid-with-variables failed, retry as plain body
+        if content_sid and "content_variables" in str(exc).lower() or "21656" in str(exc):
+            try:
+                from twilio.rest import Client as TwilioClient  # type: ignore[import-untyped]  # noqa: F811
+                client2 = TwilioClient(account_sid, auth_token)
+                msg2 = client2.messages.create(body=message_text, from_=from_number, to=destination)
+                print(f"[Twilio] Message sent (body fallback) → SID={msg2.sid}", file=sys.stderr)
+                return True
+            except Exception as exc2:  # noqa: BLE001
+                print(f"[Twilio] Body fallback also failed: {type(exc2).__name__}: {exc2}", file=sys.stderr)
         print(f"[Twilio] Send failed: {type(exc).__name__}: {exc}", file=sys.stderr)
         return False
 
