@@ -371,13 +371,16 @@ def send_whapi_whatsapp(phone: str, message_text: str) -> bool:
             f"{base_url}/messages/text",
             headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json", "Accept": "application/json"},
             json={"to": clean_phone, "body": message_text},
-            timeout=10,
+            timeout=5,
         )
         data = resp.json() if resp.content else {}
         if resp.status_code == 200 and data.get("sent"):
             msg_id = data.get("message", {}).get("id", "?")
             print(f"[Whapi] Sent → id={msg_id} to={clean_phone}", file=sys.stderr)
             return True
+        if resp.status_code == 402:
+            print("[Whapi] Trial message limit reached — upgrade at whapi.cloud to send more.", file=sys.stderr)
+            return False
         print(f"[Whapi] Send failed: HTTP {resp.status_code} {resp.text[:120]}", file=sys.stderr)
         return False
     except Exception as exc:  # noqa: BLE001

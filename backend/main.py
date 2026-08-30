@@ -255,11 +255,13 @@ def dispatch_recovery(db: Session, txn: Transaction) -> tuple[str | None, bool]:
         },
     )
 
-    # ── Live WhatsApp via Twilio Sandbox ──────────────────────────────────────
-    # Always attempts the customer's own phone first; falls back to the
-    # operator's personal number (MY_PERSONAL_WHATSAPP) when the customer
-    # phone is unavailable.  Both calls are fire-and-forget — failures are
-    # logged to stderr but never raise so the pipeline is never blocked.
+    # ── Commit DB changes BEFORE external HTTP calls ─────────────────────────
+    # SQLite only allows one writer. Whapi calls can take up to 10s on timeout.
+    # Committing here releases the write lock so concurrent requests don't block.
+    db.commit()
+    # ─────────────────────────────────────────────────────────────────────────
+
+    # ── Live WhatsApp (fire-and-forget) ───────────────────────────────────────
     personal_wa = os.getenv("MY_PERSONAL_WHATSAPP", "")
     target_phones: list[str] = []
     if txn.customer_phone and txn.customer_phone.strip():
