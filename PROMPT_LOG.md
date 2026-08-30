@@ -367,3 +367,13 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `tests/test_main.py`, `.gitignore`, `.env.example`
   - `PROMPT_LOG.md`, `BUILD_LOG.md`
 - **Actions Executed**: Clicking rzp.io never notified RecoverPay. New messages land on the recover endpoint so a tap sets RECOVERED + PAYMENT_EVIDENCE_CONFIRMED. Pytest, commit, push.
+
+---
+
+### [Prompt #34] - Reset recoverpay.db metrics
+- **Timestamp**: 2026-08-30 / Local DB reset
+- **Exact User Prompt**: "Please clear all rows from the Transaction and AuditLog tables in recoverpay.db so all metrics start fresh at ₹ 0.00."
+- **Files Created / Modified**:
+  - `recoverpay.db` (local, gitignored) — deleted 60 transactions and 219 audit logs
+  - `PROMPT_LOG.md`, `BUILD_LOG.md`
+- **Actions Executed**: `DELETE` from `audit_logs` then `transactions`. `opt_out_registry` left intact. Metrics API returned ₹0.00 / 0 transactions.

@@ -104,6 +104,13 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 
 ---
 
+### [Entry #27] Local SQLite metrics reset
+- **Status**: 🟢 COMPLETE
+- **Component**: `recoverpay.db`
+- **What happened**: Cleared `transactions` (60) and `audit_logs` (219) so dashboard volume/metrics start at ₹0.00. `opt_out_registry` was left intact.
+
+---
+
 ### [Entry #26] WhatsApp tap did not flip RECOVERY_DISPATCHED → RECOVERED
 - **Status**: 🟢 RESOLVED
 - **Component**: `backend/main.py`
