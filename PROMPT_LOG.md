@@ -121,6 +121,17 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
 
 ---
 
+### [Prompt #19] - Rich structured Green API WhatsApp messages
+- **Timestamp**: 2026-08-30 / Green API message formatting
+- **Exact User Prompt**: "Verify and update backend/agent.py so that every WhatsApp message sent via Green API explicitly formats and includes: plain failure cause, actionable fix tip, regional dialect, 1-click Razorpay link."
+- **Files Created / Modified**:
+  - `backend/agent.py` (added `_GREETINGS`, `_POSSESSIVES`, `_CAUSE_PHRASES`, `_ACTION_TIPS` dicts; added `build_rich_whatsapp_message()` function producing exact 3-line format)
+  - `backend/main.py` (imported `build_rich_whatsapp_message`; Green API send now uses `build_rich_whatsapp_message(request, register)` instead of `diagnostic.hinglish_message`)
+  - `PROMPT_LOG.md`
+- **Actions Executed**: All 5 dialects (Kanglish/Tanglish/Telugu/Marathi/Hinglish) verified via preview test. Live send `idMessage=3EB02C005FCB72B9F90A10` delivered. `pytest` → 30 passed. Committed and pushed.
+
+---
+
 ### [Prompt #18] - Green API WhatsApp Integration
 - **Timestamp**: 2026-08-30 / Green API live messaging
 - **Exact User Prompt**: "Please integrate Green API into backend/agent.py. Add send_green_api_message(). In backend/main.py, whenever a webhook payment failure is processed or simulation runs, call send_green_api_message to send the regional recovery message to MY_PERSONAL_WHATSAPP."

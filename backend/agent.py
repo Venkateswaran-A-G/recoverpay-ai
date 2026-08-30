@@ -87,7 +87,90 @@ _LOCALE_STYLE: dict[LanguageRegister, str] = {
     LanguageRegister.ENGLISH: "Simple, polite Indian English. No slang.",
 }
 
-# Deterministic templates: {name} {amount} {merchant} {link}
+# ── Dialect-aware greeting and possessive ─────────────────────────────────────
+_GREETINGS: dict[LanguageRegister, str] = {
+    LanguageRegister.KANNADA_ENGLISH: "Namaskara",
+    LanguageRegister.TANGLISH: "Vanakkam",
+    LanguageRegister.TELUGU_ENGLISH: "Namaskaram",
+    LanguageRegister.MARATHI_HINGLISH: "Namaskar",
+    LanguageRegister.HINGLISH: "Namaste",
+    LanguageRegister.ENGLISH: "Hello",
+}
+
+_POSSESSIVES: dict[LanguageRegister, str] = {
+    LanguageRegister.KANNADA_ENGLISH: "Nimma",
+    LanguageRegister.TANGLISH: "Ungoda",
+    LanguageRegister.TELUGU_ENGLISH: "Meeru",
+    LanguageRegister.MARATHI_HINGLISH: "Tumcha",
+    LanguageRegister.HINGLISH: "Aapka",
+    LanguageRegister.ENGLISH: "Your",
+}
+
+# ── Plain human-readable failure cause per category × dialect ─────────────────
+_CAUSE_PHRASES: dict[str, dict[LanguageRegister, str]] = {
+    "TEMPORARY_OUTAGE": {
+        LanguageRegister.KANNADA_ENGLISH: "bank server timeout karanadinda agilla",
+        LanguageRegister.TANGLISH: "bank server timeout aagidhuchu",
+        LanguageRegister.TELUGU_ENGLISH: "bank server timeout valla fail ayyindi",
+        LanguageRegister.MARATHI_HINGLISH: "bank server timeout mule fail zala",
+        LanguageRegister.HINGLISH: "bank server timeout ki wajah se fail ho gaya",
+        LanguageRegister.ENGLISH: "failed due to a bank server timeout",
+    },
+    "INSUFFICIENT_FUNDS": {
+        LanguageRegister.KANNADA_ENGLISH: "account balance saala illa anta fail aaytu",
+        LanguageRegister.TANGLISH: "account balance podumaiyilla aagiduchu",
+        LanguageRegister.TELUGU_ENGLISH: "account balance chaalaledu antu fail ayyindi",
+        LanguageRegister.MARATHI_HINGLISH: "account balance kami asel mule fail zala",
+        LanguageRegister.HINGLISH: "account mein balance kam hone se fail ho gaya",
+        LanguageRegister.ENGLISH: "failed due to insufficient account balance",
+    },
+    "EXPIRED_CARD": {
+        LanguageRegister.KANNADA_ENGLISH: "card expire aagide anta fail aaytu",
+        LanguageRegister.TANGLISH: "card expire aagidhuchu",
+        LanguageRegister.TELUGU_ENGLISH: "card expire ayyindi",
+        LanguageRegister.MARATHI_HINGLISH: "card expire zala",
+        LanguageRegister.HINGLISH: "card expire ho gayi hai",
+        LanguageRegister.ENGLISH: "failed because your card has expired",
+    },
+    "AUTHENTICATION_FAILED": {
+        LanguageRegister.KANNADA_ENGLISH: "OTP/UPI PIN authenticate agilla anta fail aaytu",
+        LanguageRegister.TANGLISH: "OTP/UPI PIN authentication fail aagidhuchu",
+        LanguageRegister.TELUGU_ENGLISH: "OTP/UPI PIN authentication fail ayyindi",
+        LanguageRegister.MARATHI_HINGLISH: "OTP/UPI PIN authentication fail zala",
+        LanguageRegister.HINGLISH: "OTP/UPI PIN authentication fail ho gaya",
+        LanguageRegister.ENGLISH: "failed at OTP / UPI PIN authentication",
+    },
+    "USER_DROPOFF": {
+        LanguageRegister.KANNADA_ENGLISH: "complete agalilla",
+        LanguageRegister.TANGLISH: "complete pandavillai",
+        LanguageRegister.TELUGU_ENGLISH: "complete kaaledu",
+        LanguageRegister.MARATHI_HINGLISH: "complete zale nahi",
+        LanguageRegister.HINGLISH: "complete nahi hua",
+        LanguageRegister.ENGLISH: "was not completed",
+    },
+}
+
+# ── Actionable fix tips per failure category (English, understood universally) ─
+_ACTION_TIPS: dict[str, str] = {
+    "TEMPORARY_OUTAGE": (
+        "Select GPay or PhonePe UPI directly at checkout for instant authorization."
+    ),
+    "INSUFFICIENT_FUNDS": (
+        "Add the required amount to your account and tap the link to retry."
+    ),
+    "EXPIRED_CARD": (
+        "Update your card details in your banking app, then tap the payment link."
+    ),
+    "AUTHENTICATION_FAILED": (
+        "Keep your UPI PIN or OTP ready before tapping the payment link."
+    ),
+    "USER_DROPOFF": (
+        "Your order is saved — complete your payment before the link expires!"
+    ),
+}
+
+# ── Deterministic templates: {name} {amount} {merchant} {link} ────────────────
+# (kept as legacy fallback; build_rich_whatsapp_message is preferred)
 _FALLBACK_TEMPLATES: dict[LanguageRegister, str] = {
     LanguageRegister.KANNADA_ENGLISH: (
         "Hey {name}! Nimma ₹{amount} payment timeout aaytu {merchant} ge. "
@@ -193,6 +276,40 @@ def render_fallback_message(
         amount=amount,
         merchant=merchant,
         link=request.payment_link,
+    )
+
+
+def build_rich_whatsapp_message(
+    request: RecoveryCopyRequest,
+    register: LanguageRegister,
+) -> str:
+    """Build the structured 3-line WhatsApp message sent via Green API.
+
+    Format::
+
+        {Greeting} {name}! {Poss} {merchant} order (₹{amount}) payment {cause}.
+        💡 Tip: {actionable tip}
+        🔗 1-Click Payment Link: {link}
+
+    All four elements — regional greeting, plain failure cause, actionable tip,
+    and Razorpay payment link — are always present regardless of failure type.
+    """
+    name = sanitize_text(request.customer_first_name, fallback="there")
+    merchant = sanitize_text(request.merchant_name, max_len=60, fallback="the merchant")
+    amount = Decimal(request.order_amount).quantize(Decimal("0.01"))
+
+    failure_cat = classify_failure_code(request.failure_code, request.failure_description)
+
+    greeting = _GREETINGS.get(register, "Hello")
+    possessive = _POSSESSIVES.get(register, "Your")
+    cause_map = _CAUSE_PHRASES.get(failure_cat, _CAUSE_PHRASES["USER_DROPOFF"])
+    cause = cause_map.get(register, cause_map[LanguageRegister.ENGLISH])
+    tip = _ACTION_TIPS.get(failure_cat, _ACTION_TIPS["USER_DROPOFF"])
+
+    return (
+        f"{greeting} {name}! {possessive} {merchant} order (₹{amount}) payment {cause}.\n"
+        f"💡 Tip: {tip}\n"
+        f"🔗 1-Click Payment Link: {request.payment_link}"
     )
 
 
