@@ -347,106 +347,24 @@ def _is_placeholder_twilio(value: str | None) -> bool:
     return any(m in lowered for m in _TWILIO_PLACEHOLDER_MARKERS)
 
 
-def send_whapi_whatsapp(phone: str, message_text: str) -> bool:
-    """Send a free-form WhatsApp message via Whapi Cloud.
-
-    Environment variables required:
-        WHAPI_TOKEN – Bearer token from gate.whapi.cloud
-        WHAPI_URL   – Base URL (default: https://gate.whapi.cloud/)
-    """
-    import sys
-
-    token = os.getenv("WHAPI_TOKEN", "").strip()
-    base_url = os.getenv("WHAPI_URL", "https://gate.whapi.cloud/").rstrip("/")
-    if not token or token in ("your_whapi_token", "changeme"):
-        print("[Whapi] WHAPI_TOKEN not configured; skipping.", file=sys.stderr)
-        return False
-
-    # Normalise: strip whatsapp: prefix and +, keep digits only with country code
-    clean_phone = phone.replace("whatsapp:", "").lstrip("+")
-    try:
-        import requests as _requests  # type: ignore[import-untyped]
-
-        resp = _requests.post(
-            f"{base_url}/messages/text",
-            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json", "Accept": "application/json"},
-            json={"to": clean_phone, "body": message_text},
-            timeout=5,
-        )
-        data = resp.json() if resp.content else {}
-        if resp.status_code == 200 and data.get("sent"):
-            msg_id = data.get("message", {}).get("id", "?")
-            print(f"[Whapi] Sent → id={msg_id} to={clean_phone}", file=sys.stderr)
-            return True
-        if resp.status_code == 402:
-            print("[Whapi] Trial message limit reached — upgrade at whapi.cloud to send more.", file=sys.stderr)
-            return False
-        print(f"[Whapi] Send failed: HTTP {resp.status_code} {resp.text[:120]}", file=sys.stderr)
-        return False
-    except Exception as exc:  # noqa: BLE001
-        print(f"[Whapi] Exception: {type(exc).__name__}: {exc}", file=sys.stderr)
-        return False
-
-
-def send_callmebot_whatsapp(phone: str, message_text: str) -> bool:
-    """Send a free-form WhatsApp message via CallMeBot (free, no templates needed).
-
-    One-time setup: WhatsApp "I allow callmebot to send me messages" to +34 644 50 47 20.
-    You'll receive a CALLMEBOT_API_KEY in reply.
-
-    Environment variables required:
-        CALLMEBOT_API_KEY  – numeric key received from CallMeBot setup
-        MY_PERSONAL_WHATSAPP – phone number in E.164 format e.g. +919148001667
-    """
-    import sys
-    import urllib.parse
-    import urllib.request
-
-    api_key = os.getenv("CALLMEBOT_API_KEY", "").strip()
-    if not api_key or api_key in ("your_callmebot_key", "changeme"):
-        print("[CallMeBot] CALLMEBOT_API_KEY not configured; skipping.", file=sys.stderr)
-        return False
-
-    # Strip whatsapp: prefix and leading +
-    clean_phone = phone.replace("whatsapp:", "").lstrip("+")
-    encoded_msg = urllib.parse.quote(message_text)
-    url = f"https://api.callmebot.com/whatsapp.php?phone={clean_phone}&text={encoded_msg}&apikey={api_key}"
-    try:
-        with urllib.request.urlopen(url, timeout=10) as resp:
-            body = resp.read().decode("utf-8", errors="replace")
-            print(f"[CallMeBot] Sent to {clean_phone} → {body[:80]}", file=sys.stderr)
-            return True
-    except Exception as exc:  # noqa: BLE001
-        print(f"[CallMeBot] Send failed: {type(exc).__name__}: {exc}", file=sys.stderr)
-        return False
-
-
 def send_live_whatsapp_message(to_phone: str, message_text: str) -> bool:
-    """Send ``message_text`` via CallMeBot (preferred, free-form) with Twilio as fallback.
+    """Send ``message_text`` to ``to_phone`` via Twilio WhatsApp Sandbox.
 
-    CallMeBot is tried first when CALLMEBOT_API_KEY is set — it supports any text
-    without ContentSid restrictions. Falls back to Twilio ContentSid template if
-    CallMeBot is not configured.
+    Returns ``True`` on success, ``False`` if Twilio is not configured,
+    ``TEST_MODE`` is enabled, or the send fails. Never raises.
 
-    Returns ``True`` on success, ``False`` otherwise. Never raises.
+    Environment variables required:
+        TWILIO_ACCOUNT_SID   – ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+        TWILIO_AUTH_TOKEN    – Twilio auth token
+        TWILIO_WHATSAPP_FROM – e.g. "whatsapp:+17372212163"
+        TWILIO_CONTENT_SID   – (optional) pre-approved template SID
     """
     import sys
 
     if _test_mode_enabled():
-        print(f"[WhatsApp] TEST_MODE=true → skipping live send to {to_phone}", file=sys.stderr)
+        print(f"[Twilio] TEST_MODE=true → skipping live send to {to_phone}", file=sys.stderr)
         return False
 
-    # ── Whapi Cloud (best: free-form, no templates) ───────────────────────
-    whapi_token = os.getenv("WHAPI_TOKEN", "").strip()
-    if whapi_token and whapi_token not in ("your_whapi_token", "changeme"):
-        return send_whapi_whatsapp(to_phone, message_text)
-
-    # ── CallMeBot (free-form, no template required) ───────────────────────
-    callmebot_key = os.getenv("CALLMEBOT_API_KEY", "").strip()
-    if callmebot_key and callmebot_key not in ("your_callmebot_key", "changeme"):
-        return send_callmebot_whatsapp(to_phone, message_text)
-
-    # ── Twilio fallback ───────────────────────────────────────────────────
     account_sid = os.getenv("TWILIO_ACCOUNT_SID")
     auth_token = os.getenv("TWILIO_AUTH_TOKEN")
     from_number = os.getenv("TWILIO_WHATSAPP_FROM", "whatsapp:+17372212163")
