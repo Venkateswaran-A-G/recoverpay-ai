@@ -347,53 +347,77 @@ def _is_placeholder_twilio(value: str | None) -> bool:
     return any(m in lowered for m in _TWILIO_PLACEHOLDER_MARKERS)
 
 
-def send_live_whatsapp_message(to_phone: str, message_text: str) -> bool:
-    """Send ``message_text`` to ``to_phone`` via Twilio WhatsApp Sandbox.
+def send_callmebot_whatsapp(phone: str, message_text: str) -> bool:
+    """Send a free-form WhatsApp message via CallMeBot (free, no templates needed).
 
-    Returns ``True`` on success, ``False`` if Twilio is not configured
-    (missing / placeholder credentials) or if ``TEST_MODE`` is enabled.
-    Failures are logged to stderr but never raise — the recovery pipeline
-    must not be blocked by a messaging error.
+    One-time setup: WhatsApp "I allow callmebot to send me messages" to +34 644 50 47 20.
+    You'll receive a CALLMEBOT_API_KEY in reply.
 
     Environment variables required:
-        TWILIO_ACCOUNT_SID   – ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-        TWILIO_AUTH_TOKEN    – Twilio auth token
-        TWILIO_WHATSAPP_FROM – e.g. "whatsapp:+14155238886"
+        CALLMEBOT_API_KEY  – numeric key received from CallMeBot setup
+        MY_PERSONAL_WHATSAPP – phone number in E.164 format e.g. +919148001667
+    """
+    import sys
+    import urllib.parse
+    import urllib.request
+
+    api_key = os.getenv("CALLMEBOT_API_KEY", "").strip()
+    if not api_key or api_key in ("your_callmebot_key", "changeme"):
+        print("[CallMeBot] CALLMEBOT_API_KEY not configured; skipping.", file=sys.stderr)
+        return False
+
+    # Strip whatsapp: prefix and leading +
+    clean_phone = phone.replace("whatsapp:", "").lstrip("+")
+    encoded_msg = urllib.parse.quote(message_text)
+    url = f"https://api.callmebot.com/whatsapp.php?phone={clean_phone}&text={encoded_msg}&apikey={api_key}"
+    try:
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            body = resp.read().decode("utf-8", errors="replace")
+            print(f"[CallMeBot] Sent to {clean_phone} → {body[:80]}", file=sys.stderr)
+            return True
+    except Exception as exc:  # noqa: BLE001
+        print(f"[CallMeBot] Send failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return False
+
+
+def send_live_whatsapp_message(to_phone: str, message_text: str) -> bool:
+    """Send ``message_text`` via CallMeBot (preferred, free-form) with Twilio as fallback.
+
+    CallMeBot is tried first when CALLMEBOT_API_KEY is set — it supports any text
+    without ContentSid restrictions. Falls back to Twilio ContentSid template if
+    CallMeBot is not configured.
+
+    Returns ``True`` on success, ``False`` otherwise. Never raises.
     """
     import sys
 
+    if _test_mode_enabled():
+        print(f"[WhatsApp] TEST_MODE=true → skipping live send to {to_phone}", file=sys.stderr)
+        return False
+
+    # ── CallMeBot (free-form, no template required) ───────────────────────
+    callmebot_key = os.getenv("CALLMEBOT_API_KEY", "").strip()
+    if callmebot_key and callmebot_key not in ("your_callmebot_key", "changeme"):
+        return send_callmebot_whatsapp(to_phone, message_text)
+
+    # ── Twilio fallback ───────────────────────────────────────────────────
     account_sid = os.getenv("TWILIO_ACCOUNT_SID")
     auth_token = os.getenv("TWILIO_AUTH_TOKEN")
-    from_number = os.getenv("TWILIO_WHATSAPP_FROM", "whatsapp:+14155238886")
-
-    if _test_mode_enabled():
-        print(
-            f"[Twilio] TEST_MODE=true → skipping live send to {to_phone}",
-            file=sys.stderr,
-        )
-        return False
+    from_number = os.getenv("TWILIO_WHATSAPP_FROM", "whatsapp:+17372212163")
 
     if _is_placeholder_twilio(account_sid) or _is_placeholder_twilio(auth_token):
-        print(
-            "[Twilio] TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN not configured; skipping send.",
-            file=sys.stderr,
-        )
+        print("[Twilio] Credentials not configured; skipping send.", file=sys.stderr)
         return False
 
-    # Normalise the destination: ensure "whatsapp:" prefix
     destination = to_phone if to_phone.startswith("whatsapp:") else f"whatsapp:{to_phone}"
-
     content_sid = os.getenv("TWILIO_CONTENT_SID", "").strip()
 
     try:
         import json as _json
-
         from twilio.rest import Client as TwilioClient  # type: ignore[import-untyped]
 
         client = TwilioClient(account_sid, auth_token)
-
         if content_sid:
-            # Use pre-approved template; pass message as variable {{1}} if template supports it
             msg = client.messages.create(
                 from_=from_number,
                 to=destination,
@@ -401,25 +425,10 @@ def send_live_whatsapp_message(to_phone: str, message_text: str) -> bool:
                 content_variables=_json.dumps({"1": message_text[:1600]}),
             )
         else:
-            # Free-form body (works when 24h session is open and account allows it)
-            msg = client.messages.create(
-                body=message_text,
-                from_=from_number,
-                to=destination,
-            )
+            msg = client.messages.create(body=message_text, from_=from_number, to=destination)
         print(f"[Twilio] Message sent → SID={msg.sid} status={msg.status}", file=sys.stderr)
         return True
     except Exception as exc:  # noqa: BLE001
-        # If ContentSid-with-variables failed, retry as plain body
-        if content_sid and "content_variables" in str(exc).lower() or "21656" in str(exc):
-            try:
-                from twilio.rest import Client as TwilioClient  # type: ignore[import-untyped]  # noqa: F811
-                client2 = TwilioClient(account_sid, auth_token)
-                msg2 = client2.messages.create(body=message_text, from_=from_number, to=destination)
-                print(f"[Twilio] Message sent (body fallback) → SID={msg2.sid}", file=sys.stderr)
-                return True
-            except Exception as exc2:  # noqa: BLE001
-                print(f"[Twilio] Body fallback also failed: {type(exc2).__name__}: {exc2}", file=sys.stderr)
         print(f"[Twilio] Send failed: {type(exc).__name__}: {exc}", file=sys.stderr)
         return False
 
