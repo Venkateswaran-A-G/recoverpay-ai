@@ -104,6 +104,14 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 
 ---
 
+### [Entry #16] WhatsApp Phone Simulator
+- **Status**: 🟢 COMPLETE
+- **Component**: `frontend/index.html` + `backend/main.py`
+- **What happened**: New feature — 3D WhatsApp phone simulator modal that opens alongside the audit drawer when clicking "Inspect Audit". Shows typing animation then renders the exact regional recovery message from the LLM audit log with a 💡 failure tip and 🔗 Razorpay UPI button. Typing "STOP" in the reply box triggers the live opt-out API.
+- **No errors**: 30 tests passed.
+
+---
+
 ### [Entry #15] smoke_api.py missing X-API-KEY headers
 - **Status**: 🟢 RESOLVED
 - **Component**: `scripts/smoke_api.py`

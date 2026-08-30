@@ -12,7 +12,7 @@ from typing import Any
 
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
+from fastapi import Body, Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from sqlalchemy.orm import Session
@@ -606,3 +606,55 @@ def run_batch_simulator(
         states=list(SIM_STATES),
         metrics=compute_metrics(db),
     )
+
+
+@app.post("/api/v1/webhooks/whatsapp", tags=["webhooks"])
+def whatsapp_simulator_opt_out(
+    payload: dict[str, Any] = Body(...),
+    db: Session = Depends(get_db),
+    x_api_key: str | None = Header(default=None, alias="X-API-KEY"),
+) -> dict[str, Any]:
+    """Handle STOP / OPT OUT keywords from the frontend WhatsApp phone simulator."""
+    _dashboard_authorized(x_api_key)
+
+    txn_id = str(payload.get("transaction_id") or "").strip()
+    keyword = str(payload.get("message") or "").strip().upper()
+
+    if keyword not in {"STOP", "OPT OUT", "OPTOUT", "UNSUBSCRIBE"}:
+        return {"status": "ignored", "reason": "Not an opt-out keyword"}
+
+    if not txn_id:
+        raise HTTPException(status_code=400, detail="transaction_id required for opt-out")
+
+    txn = db.get(Transaction, txn_id)
+    if txn is None:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    phone = (txn.customer_phone or "").strip()
+
+    # Register in opt-out registry
+    if phone and db.query(OptOutRegistry).filter(OptOutRegistry.phone_number == phone).first() is None:
+        db.add(OptOutRegistry(phone_number=phone, opt_out_source="WHATSAPP_STOP"))
+
+    # Mark all non-opted-out transactions for this phone as OPTED_OUT
+    affected: list[Transaction] = (
+        db.query(Transaction)
+        .filter(
+            Transaction.customer_phone == phone,
+            Transaction.recovery_status != RecoveryStatus.OPTED_OUT.value,
+        )
+        .all()
+        if phone else []
+    )
+    for t in affected:
+        t.recovery_status = RecoveryStatus.OPTED_OUT.value
+        write_audit(
+            db,
+            transaction_id=t.id,
+            step_name="OPT_OUT",
+            step_status=AuditStepStatus.SUCCESS.value,
+            raw_payload={"source": "whatsapp_simulator", "keyword": keyword},
+        )
+
+    db.commit()
+    return {"status": "opted_out", "transaction_id": txn_id, "transactions_updated": len(affected)}

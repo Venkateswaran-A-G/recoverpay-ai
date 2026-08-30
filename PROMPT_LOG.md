@@ -121,6 +121,17 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
 
 ---
 
+### [Prompt #16] - Interactive 3D WhatsApp Phone Simulator
+- **Timestamp**: 2026-08-30 / Frontend phone simulator
+- **Exact User Prompt**: "Please add an interactive Web WhatsApp Phone Simulator Drawer/Modal to frontend/index.html: 3D Smartphone Mockup Frame with notch, status bar, and WhatsApp chat header. Dynamic Chat Bubble when user clicks 'Inspect Audit'. Typing Indicator Animation. Interactive Phone Reply Box — type 'STOP' to trigger POST /api/v1/webhooks/whatsapp."
+- **Files Created / Modified**:
+  - `frontend/index.html` (phone simulator modal CSS, HTML, JS; `openAudit()` now also calls `openPhoneSim()`)
+  - `backend/main.py` (new `POST /api/v1/webhooks/whatsapp` endpoint for STOP/OPT OUT opt-out)
+  - `PROMPT_LOG.md`, `BUILD_LOG.md`
+- **Actions Executed**: Added `#phone-scrim` modal with 3D phone frame, WhatsApp header, typing animation (3 bouncing dots → 1.6s → message bubble), regional recovery message extracted from audit logs, clickable `🔗 Pay via Razorpay UPI` CTA. STOP/OPT OUT in reply box POSTs to `/api/v1/webhooks/whatsapp`, adds phone to opt_out_registry, sets all transactions for that phone to `OPTED_OUT`, and refreshes dashboard. `pytest` → 30 passed.
+
+---
+
 ### [Prompt #12] - Twilio WhatsApp Sandbox integration (later removed)
 - **Timestamp**: 2026-08-30 / WhatsApp live messaging
 - **Exact User Prompt**: "Please update backend/agent.py to install twilio library (pip install twilio) and add a function send_live_whatsapp_message(to_phone, message_text). When a payment failure is processed in backend/main.py, send the generated regional Hinglish/Kanglish recovery message directly to MY_PERSONAL_WHATSAPP using Twilio WhatsApp Sandbox!"
