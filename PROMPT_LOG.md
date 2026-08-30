@@ -132,6 +132,15 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
 
 ---
 
+### [Prompt #22] - Fix bank widget position and light/dark theme
+- **Timestamp**: 2026-08-30 / Bank widget UI fix
+- **Exact User Prompt**: "see bank icon is floating in the middle of the screen and it change the website to light mode the bank is still in dark mode"
+- **Files Created / Modified**:
+  - `frontend/index.html` (moved `#bankWidget` from vertical center to bottom-right; replaced hardcoded dark slate styles with `glass` + light/dark Tailwind classes)
+- **Actions Executed**: Widget no longer overlaps metric cards. Light mode now uses frosted white glass; dark mode keeps slate glass.
+
+---
+
 ### [Prompt #20] - Live India Downstream Bank Outage Map
 - **Timestamp**: 2026-08-30 / Bank health monitoring feature
 - **Exact User Prompt**: "Implement Live India Downstream Bank Outage Map: bank health endpoint, failure rate detection, BANK_OUTAGE_HOLD status, bank outage note in WhatsApp, 3D glassmorphism bank health banner."
