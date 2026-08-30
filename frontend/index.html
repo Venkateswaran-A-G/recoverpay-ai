@@ -128,21 +128,6 @@
   </header>
 
   <main class="relative z-10 max-w-6xl mx-auto px-6 py-7">
-
-    <!-- ── India Core Bank Health Banner ──────────────────────────────── -->
-    <section class="glass rounded-2xl px-4 py-3 mb-5">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center gap-2">
-          <span class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">🏦 India Core Bank Health</span>
-          <span id="bankHealthMeta" class="text-[10px] text-slate-400 dark:text-slate-500">Loading…</span>
-        </div>
-        <button id="outageBtn" type="button" class="lift rounded-lg px-3 py-1.5 text-[12px] font-semibold text-rose-700 dark:text-rose-300 bg-rose-500/10 border border-rose-500/30">
-          🔴 Simulate SBI Bank Outage Spike
-        </button>
-      </div>
-      <div id="bankPills" class="flex flex-wrap gap-1.5 mt-2.5"></div>
-    </section>
-    <!-- ─────────────────────────────────────────────────────────────────── -->
     <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3.5 mb-6">
       <article class="glass lift rounded-2xl p-4">
         <div class="text-xs text-slate-500 dark:text-slate-400 mb-2.5">Total Failed Volume</div>
@@ -226,6 +211,39 @@
     <div id="nodes" class="node-3d space-y-0"></div>
   </aside>
   <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 glass rounded-lg px-3.5 py-2.5 text-xs">Toast</div>
+
+  <!-- ── Floating Bank Health Widget ──────────────────────────────────── -->
+  <div id="bankWidget" class="fixed right-0 top-1/2 -translate-y-1/2 z-[45] flex items-center">
+    <!-- Collapsed tab -->
+    <button id="bankWidgetTab" type="button"
+      class="flex flex-col items-center gap-1.5 rounded-l-xl px-2 py-4 text-[9px] font-semibold bg-slate-900/90 border border-r-0 border-slate-700 backdrop-blur-md hover:bg-slate-800 transition-colors"
+      title="Toggle Bank Health">
+      <span class="text-base">🏦</span>
+      <span style="writing-mode:vertical-lr;transform:rotate(180deg)" class="text-[8px] tracking-widest text-slate-400 uppercase">Bank</span>
+    </button>
+    <!-- Panel (hidden by default) -->
+    <div id="bankWidgetPanel"
+      class="w-64 rounded-l-2xl bg-slate-900/95 border border-r-0 border-slate-700/80 backdrop-blur-md p-4 shadow-[0_24px_64px_rgba(0,0,0,0.8)] transition-transform duration-300 translate-x-full"
+      style="max-height:480px;overflow-y:auto">
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-[11px] font-semibold text-slate-200 tracking-wide">🏦 India Core Banks</span>
+        <button id="bankRefreshBtn" type="button" class="text-slate-400 hover:text-white text-sm leading-none" title="Refresh">↻</button>
+      </div>
+      <!-- Bank rows -->
+      <div id="bankWidgetRows" class="space-y-3"></div>
+      <!-- Meta -->
+      <p id="bankWidgetMeta" class="text-[9px] text-slate-500 mt-3 text-center">Checking…</p>
+      <!-- Simulate outage button -->
+      <div class="mt-3 pt-3 border-t border-slate-700/50">
+        <button id="outageBtnWidget" type="button"
+          class="w-full text-center text-[11px] font-semibold py-1.5 rounded-lg text-rose-300 bg-rose-500/10 border border-rose-500/30 hover:bg-rose-500/20 transition-colors">
+          🔴 Simulate SBI Outage Spike
+        </button>
+      </div>
+    </div>
+  </div>
+  <!-- ── End Floating Widget ─────────────────────────────────────────── -->
 
   <script>
     const INR = new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -554,56 +572,85 @@
     loadHealth();
     refresh().catch(() => {});
 
-    // ── Bank Health Banner ──────────────────────────────────────────────────
+    // ── Floating Bank Health Widget ──────────────────────────────────────────
     let _sbiOutageActive = false;
+    let _bankWidgetOpen = false;
+
+    const STATUS_DOT = {
+      OPERATIONAL: "bg-emerald-400 shadow-[0_0_7px_rgba(52,211,153,0.8)]",
+      DEGRADED:    "bg-yellow-400  shadow-[0_0_7px_rgba(250,204,21,0.8)]",
+      OUTAGE:      "bg-rose-400    shadow-[0_0_7px_rgba(248,113,113,0.8)]",
+    };
+    const STATUS_COLOR = {
+      OPERATIONAL: "text-emerald-400",
+      DEGRADED:    "text-yellow-400",
+      OUTAGE:      "text-rose-400",
+    };
+
+    function renderBankWidgetRows(data) {
+      const rows = $("bankWidgetRows");
+      rows.innerHTML = "";
+      Object.values(data).forEach((b) => {
+        const dot   = STATUS_DOT[b.status]   || STATUS_DOT.OPERATIONAL;
+        const color = STATUS_COLOR[b.status] || STATUS_COLOR.OPERATIONAL;
+        const row = document.createElement("div");
+        row.className = "flex items-center justify-between";
+        row.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 animate-pulse ${dot}"></span>
+            <span class="text-[12px] font-semibold text-white">${escapeHtml(b.bank)}</span>
+          </div>
+          <div class="text-right">
+            <div class="font-mono text-[10px] text-slate-300">${escapeHtml(b.latency_display || "—")}</div>
+            <div class="text-[9px] font-semibold ${color}">${b.status}</div>
+          </div>`;
+        rows.appendChild(row);
+      });
+    }
 
     async function loadBankHealth() {
       try {
         const r = await fetch("/api/v1/bank-health", { headers: { "X-API-KEY": "demo_dashboard_key" } });
         const data = await r.json();
-        const pills = $("bankPills");
-        pills.innerHTML = "";
-        let degradedCount = 0;
-        Object.values(data).forEach(b => {
-          const pill = document.createElement("span");
-          const deg = b.status === "DEGRADED";
-          if (deg) degradedCount++;
-          pill.className = "inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold border " +
-            (deg
-              ? "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30"
-              : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20");
-          pill.textContent = b.label;
-          pills.appendChild(pill);
-        });
-        $("bankHealthMeta").textContent = degradedCount
-          ? `⚠️ ${degradedCount} bank${degradedCount > 1 ? "s" : ""} degraded — outreach paused for affected transactions`
-          : "All banks operational";
+        renderBankWidgetRows(data);
+        const bad = Object.values(data).filter((b) => b.status !== "OPERATIONAL").length;
+        $("bankWidgetMeta").textContent = bad
+          ? `⚠️ ${bad} bank${bad > 1 ? "s" : ""} degraded · ${new Date().toLocaleTimeString("en-IN")}`
+          : `✅ All operational · ${new Date().toLocaleTimeString("en-IN")}`;
+        // Flash the tab if any bank is degraded
+        $("bankWidgetTab").classList.toggle("border-rose-500/60", bad > 0);
       } catch (_) {
-        $("bankHealthMeta").textContent = "Unable to fetch";
+        $("bankWidgetMeta").textContent = "Unable to reach health API";
       }
     }
 
-    $("outageBtn").addEventListener("click", async () => {
-      const btn = $("outageBtn");
+    $("bankWidgetTab").addEventListener("click", () => {
+      _bankWidgetOpen = !_bankWidgetOpen;
+      $("bankWidgetPanel").classList.toggle("translate-x-full", !_bankWidgetOpen);
+      $("bankWidgetPanel").classList.toggle("translate-x-0",    _bankWidgetOpen);
+    });
+
+    $("bankRefreshBtn").addEventListener("click", async () => {
+      $("bankWidgetMeta").textContent = "Checking…";
+      await loadBankHealth();
+    });
+
+    $("outageBtnWidget").addEventListener("click", async () => {
+      const btn = $("outageBtnWidget");
       btn.disabled = true;
       _sbiOutageActive = !_sbiOutageActive;
       try {
         await fetch(`/api/v1/simulator/bank-outage?bank=SBI&active=${_sbiOutageActive}`, {
           method: "POST", headers: { "X-API-KEY": "demo_dashboard_key" },
         });
-        btn.textContent = _sbiOutageActive
-          ? "✅ SBI Outage Active — Click to Clear"
-          : "🔴 Simulate SBI Bank Outage Spike";
-        toast(_sbiOutageActive
-          ? "🔴 SBI outage simulated — new SBI failures will be held"
-          : "🟢 SBI outage cleared — normal dispatch resumed");
+        btn.textContent = _sbiOutageActive ? "✅ SBI Active — Click to Clear" : "🔴 Simulate SBI Outage Spike";
+        toast(_sbiOutageActive ? "🔴 SBI outage simulated — new SBI txns held" : "🟢 SBI outage cleared");
         await loadBankHealth();
-      } catch (err) {
-        toast("Error: " + err.message);
-      } finally {
-        btn.disabled = false;
-      }
+      } finally { btn.disabled = false; }
     });
+
+    // Auto-refresh widget every 30 s
+    setInterval(loadBankHealth, 30000);
   </script>
 </body>
 </html>

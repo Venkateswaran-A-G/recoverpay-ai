@@ -121,6 +121,17 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
 
 ---
 
+### [Prompt #21] - Real-time bank health web checking + floating side widget
+- **Timestamp**: 2026-08-30 / Bank health upgrade
+- **Exact User Prompt**: "Update Feature 5 with real-time web checking and a Floating Side Widget UI. In main.py: HEAD-probe live bank URLs with latency. In index.html: floating right-side widget with pulse dots and latency display."
+- **Files Created / Modified**:
+  - `backend/main.py` (added `_BANK_URLS`, `_bank_health_cache`, `_probe_bank_url()` with HEAD request + latency; `compute_bank_health()` now runs 5 parallel HTTP probes via `ThreadPoolExecutor`, caches for 30s, cache-busted on outage toggle)
+  - `frontend/index.html` (removed top banner; added floating right-side widget with 3D glassmorphism, collapsible tab, pulse status dots, latency metrics, Simulate SBI Outage button; auto-refreshes every 30s)
+  - `PROMPT_LOG.md`
+- **Actions Executed**: `pytest` → 30 passed. Server restarted. Committed and pushed.
+
+---
+
 ### [Prompt #20] - Live India Downstream Bank Outage Map
 - **Timestamp**: 2026-08-30 / Bank health monitoring feature
 - **Exact User Prompt**: "Implement Live India Downstream Bank Outage Map: bank health endpoint, failure rate detection, BANK_OUTAGE_HOLD status, bank outage note in WhatsApp, 3D glassmorphism bank health banner."

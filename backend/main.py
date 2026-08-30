@@ -76,6 +76,18 @@ _BANK_KEYWORDS: dict[str, list[str]] = {
 # Manual overrides set by the simulator endpoint (in-process state, demo only)
 _BANK_OUTAGE_OVERRIDES: dict[str, bool] = {}
 
+# Live URL probes for each bank (HEAD request, 3 s timeout)
+_BANK_URLS: dict[str, str] = {
+    "SBI": "https://retail.onlinesbi.sbi/",
+    "HDFC": "https://netbanking.hdfcbank.com/",
+    "ICICI": "https://www.icicibank.com/",
+    "Axis": "https://www.axisbank.com/",
+    "Kotak": "https://www.kotak.com/",
+}
+_BANK_HEALTH_CACHE_TTL = 30.0          # seconds
+_bank_health_cache: dict[str, Any] | None = None
+_bank_health_cache_ts: float = 0.0
+
 # Bank-tagged simulator failure reasons (embeds bank name for health calculation)
 SIM_FAILURE_REASONS = [
     ("BAD_REQUEST_PAYMENT_TIMED_OUT", "SBI issuer bank gateway did not respond within 30 seconds"),
@@ -97,8 +109,64 @@ def detect_bank(failure_code: str, failure_reason: str) -> str | None:
     return None
 
 
+def _probe_bank_url(url: str, timeout: float = 3.0) -> tuple[str, float | None]:
+    """HEAD-probe a bank URL. Returns (status, latency_ms).
+
+    Status is one of: 'OPERATIONAL' | 'DEGRADED' | 'OUTAGE'
+    Falls back to 'OPERATIONAL' if not reachable from the demo environment.
+    """
+    import time as _t
+
+    try:
+        import requests as _req
+
+        start = _t.perf_counter()
+        resp = _req.head(
+            url,
+            timeout=timeout,
+            allow_redirects=True,
+            headers={"User-Agent": "RecoverPayAI/1.0 healthcheck"},
+        )
+        latency = round((_t.perf_counter() - start) * 1000, 1)
+        if resp.status_code >= 500:
+            return "OUTAGE", latency
+        if latency > 2500:
+            return "DEGRADED", latency
+        if latency > 800:
+            return "DEGRADED", latency
+        return "OPERATIONAL", latency
+    except Exception:
+        return "OUTAGE", None
+
+
 def compute_bank_health(db: Session) -> dict[str, dict[str, Any]]:
-    """Calculate real-time health for each major Indian bank from recent failures."""
+    """Return real-time health for each major Indian bank.
+
+    Combines three signals (priority order):
+    1. Manual outage override (_BANK_OUTAGE_OVERRIDES)
+    2. Live HEAD-probe latency to the bank's public URL
+    3. Failure-rate spike in recent ingested transactions
+
+    Results are cached for _BANK_HEALTH_CACHE_TTL seconds.
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    global _bank_health_cache, _bank_health_cache_ts
+
+    import time as _t
+
+    now = _t.monotonic()
+    if _bank_health_cache is not None and (now - _bank_health_cache_ts) < _BANK_HEALTH_CACHE_TTL:
+        return _bank_health_cache
+
+    # ── Parallel live probes ──────────────────────────────────────────────────
+    live: dict[str, tuple[str, float | None]] = {}
+    with ThreadPoolExecutor(max_workers=len(BANK_NAMES)) as pool:
+        futures = {pool.submit(_probe_bank_url, _BANK_URLS[b]): b for b in BANK_NAMES}
+        for fut in as_completed(futures, timeout=4):
+            live[futures[fut]] = fut.result()
+
+    # ── Failure-rate calculation from DB ─────────────────────────────────────
     recent = (
         db.query(Transaction)
         .order_by(Transaction.created_at.desc())
@@ -112,28 +180,52 @@ def compute_bank_health(db: Session) -> dict[str, dict[str, Any]]:
         if bank and bank in counts:
             counts[bank] += 1
 
+    # ── Merge signals ─────────────────────────────────────────────────────────
     health: dict[str, dict[str, Any]] = {}
     for bank in BANK_NAMES:
         count = counts[bank]
-        rate = round((count / total) * 100, 1)
-        # Degraded if manually overridden OR natural rate ≥ 30 %
+        failure_rate = round((count / total) * 100, 1)
+        probe_status, latency_ms = live.get(bank, ("OPERATIONAL", None))
         override_on = _BANK_OUTAGE_OVERRIDES.get(bank, False)
-        degraded = override_on or rate >= 30.0
-        display_rate = 42.0 if override_on and rate < 30 else rate
+
+        if override_on:
+            status = "DEGRADED"
+            display_rate = max(failure_rate, 42.0)
+        elif probe_status == "OUTAGE":
+            status = "OUTAGE"
+            display_rate = failure_rate
+        elif probe_status == "DEGRADED" or failure_rate >= 30.0:
+            status = "DEGRADED"
+            display_rate = max(failure_rate, 30.0)
+        else:
+            status = "OPERATIONAL"
+            display_rate = failure_rate
+
+        latency_display = f"{latency_ms:.0f} ms" if latency_ms is not None else "timeout"
+
+        if status == "OPERATIONAL":
+            label = f"🟢 {bank} Operational"
+        elif status == "DEGRADED":
+            label = f"🟡 {bank} Degraded ({display_rate:.0f}% spike)"
+        else:
+            label = f"🔴 {bank} Outage"
+
         health[bank] = {
             "bank": bank,
-            "status": "DEGRADED" if degraded else "OPERATIONAL",
+            "status": status,
             "failure_rate_pct": display_rate,
             "failure_count": count,
-            "label": (
-                f"🔴 {bank} Degraded ({display_rate:.0f}% Failure Spike)"
-                if degraded else f"🟢 {bank} Operational"
-            ),
+            "latency_ms": latency_ms,
+            "latency_display": latency_display,
+            "label": label,
             "message": (
                 f"{bank} bank servers are currently slow. Link remains valid for 2 hours."
-                if degraded else None
+                if status in ("DEGRADED", "OUTAGE") else None
             ),
         }
+
+    _bank_health_cache = health
+    _bank_health_cache_ts = now
     return health
 
 
@@ -747,6 +839,9 @@ def simulate_bank_outage(
         _BANK_OUTAGE_OVERRIDES[bank_key] = True
     else:
         _BANK_OUTAGE_OVERRIDES.pop(bank_key, None)
+    # Bust the health cache so next poll reflects the change immediately
+    global _bank_health_cache
+    _bank_health_cache = None
     return {"bank": bank_key, "outage_active": active, "message": f"{bank_key} outage {'activated' if active else 'cleared'}"}
 
 
