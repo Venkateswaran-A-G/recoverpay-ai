@@ -13,7 +13,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-os.environ.setdefault("TEST_MODE", "true")
+# Force test-safe env before any backend imports so dotenv cannot override these
+os.environ["TEST_MODE"] = "true"
 os.environ.setdefault("RAZORPAY_WEBHOOK_SECRET", "demo_secret_12345")
 
 from backend.database import get_db
@@ -164,7 +165,7 @@ def test_high_value_webhook_is_flagged_not_dispatched(client):
     assert data["requires_human_approval"] is True
     assert data["recovery_status"] == RecoveryStatus.FLAGGED_FOR_APPROVAL.value
 
-    approve = test_client.post(f"/api/v1/guardrails/approve/{data['transaction_id']}")
+    approve = test_client.post(f"/api/v1/guardrails/approve/{data['transaction_id']}", headers={"X-API-KEY": "demo_dashboard_key"})
     assert approve.status_code == 200
     assert approve.json()["recovery_status"] == RecoveryStatus.RECOVERY_DISPATCHED.value
 
@@ -197,7 +198,7 @@ def test_transactions_mask_pii(client):
         content=body,
         headers={"Content-Type": "application/json", "X-Razorpay-Signature": _sign(body)},
     )
-    listed = test_client.get("/api/v1/transactions").json()
+    listed = test_client.get("/api/v1/transactions", headers={"X-API-KEY": "demo_dashboard_key"}).json()
     assert listed
     assert listed[0]["customer_phone"] == "+91 98*****3210"
     assert listed[0]["customer_email"] == "r***@example.com"
@@ -205,7 +206,7 @@ def test_transactions_mask_pii(client):
 
 def test_audit_logs_detail_and_metrics_and_batch(client):
     test_client, _ = client
-    batch = test_client.post("/api/v1/simulator/run-batch?count=10")
+    batch = test_client.post("/api/v1/simulator/run-batch?count=10", headers={"X-API-KEY": "demo_dashboard_key"})
     assert batch.status_code == 200
     body = batch.json()
     assert body["processed"] == 10
@@ -218,12 +219,12 @@ def test_audit_logs_detail_and_metrics_and_batch(client):
     }
     assert body["flagged_for_approval"] >= 1
 
-    metrics = test_client.get("/api/v1/dashboard/metrics").json()
+    metrics = test_client.get("/api/v1/dashboard/metrics", headers={"X-API-KEY": "demo_dashboard_key"}).json()
     assert metrics["total_transactions"] >= 10
     assert float(metrics["total_failed_volume"]) > 0
 
-    txns = test_client.get("/api/v1/transactions").json()
-    detail = test_client.get(f"/api/v1/audit-logs/{txns[0]['id']}")
+    txns = test_client.get("/api/v1/transactions", headers={"X-API-KEY": "demo_dashboard_key"}).json()
+    detail = test_client.get(f"/api/v1/audit-logs/{txns[0]['id']}", headers={"X-API-KEY": "demo_dashboard_key"})
     assert detail.status_code == 200
     graph = detail.json()["execution_graph"]
     assert graph

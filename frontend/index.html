@@ -264,7 +264,7 @@
     }
 
     async function loadMetrics() {
-      const data = await (await fetch("/api/v1/dashboard/metrics")).json();
+      const data = await (await fetch("/api/v1/dashboard/metrics", { headers: { "X-API-KEY": "demo_dashboard_key" } })).json();
       $("mFailed").textContent = formatINR(data.total_failed_volume);
       $("mRecovered").textContent = formatINR(data.recovered_revenue);
       $("mRate").textContent = Number(data.recovery_rate_percent || 0).toFixed(2) + "%";
@@ -344,7 +344,7 @@
     }
 
     async function loadTransactions() {
-      allTxns = await (await fetch("/api/v1/transactions?limit=200")).json();
+      allTxns = await (await fetch("/api/v1/transactions?limit=200", { headers: { "X-API-KEY": "demo_dashboard_key" } })).json();
       applyFilters();
     }
 
@@ -353,7 +353,7 @@
     }
 
     async function openAudit(id) {
-      const data = await (await fetch("/api/v1/audit-logs/" + id)).json();
+      const data = await (await fetch("/api/v1/audit-logs/" + id, { headers: { "X-API-KEY": "demo_dashboard_key" } })).json();
       const txn = data.transaction;
       $("drawerTitle").textContent = (txn.customer_name || "Customer") + " · execution";
       $("drawerMeta").textContent = `${txn.customer_state || "—"} · ${localeFor(txn.customer_state)} · ${formatINR(txn.amount)} · ${prettyStatus(txn.recovery_status)}`;
@@ -414,7 +414,7 @@
       btn.disabled = true;
       btn.textContent = "Simulating…";
       try {
-        const res = await fetch("/api/v1/simulator/run-batch?count=20", { method: "POST" });
+        const res = await fetch("/api/v1/simulator/run-batch?count=20", { method: "POST", headers: { "X-API-KEY": "demo_dashboard_key" } });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           const detail = data.detail;
@@ -438,7 +438,7 @@
       if (approve) {
         approve.disabled = true;
         try {
-          const res = await fetch("/api/v1/guardrails/approve/" + approve.getAttribute("data-approve"), { method: "POST" });
+          const res = await fetch("/api/v1/guardrails/approve/" + approve.getAttribute("data-approve"), { method: "POST", headers: { "X-API-KEY": "demo_dashboard_key" } });
           const data = await res.json();
           if (!res.ok) throw new Error(data.detail || "Approve failed");
           toast("Approved and dispatched · " + (data.language_register || "regional copy"));
