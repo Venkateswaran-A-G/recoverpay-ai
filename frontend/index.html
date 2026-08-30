@@ -191,7 +191,12 @@
 
     <div class="flex items-end justify-between mb-3">
       <h2 class="text-[15px] font-semibold">Regional recovery table</h2>
-      <p id="streamMeta" class="text-xs text-slate-500 dark:text-slate-400">Waiting for a batch</p>
+      <div class="flex items-center gap-2">
+        <button id="approveAllBtn" type="button" class="hidden lift rounded-lg px-3 py-1.5 text-[12px] font-semibold text-amber-800 dark:text-amber-200 bg-amber-500/15 border border-amber-500/40">
+          🚨 Approve All Flagged
+        </button>
+        <p id="streamMeta" class="text-xs text-slate-500 dark:text-slate-400">Waiting for a batch</p>
+      </div>
     </div>
     <section id="stream" class="space-y-2"></section>
     <div id="empty" class="glass rounded-2xl border-dashed border-slate-300 dark:border-slate-700 px-5 py-12 text-center text-[13px] text-slate-500 dark:text-slate-400">No recoveries yet. Run a 20-payment simulation across Karnataka, Tamil Nadu, Telangana, Maharashtra, and Delhi.</div>
@@ -341,6 +346,15 @@
 
     function applyFilters() {
       renderRows(filteredTxns());
+      // Show "Approve All" only when there are flagged transactions
+      const flaggedCount = allTxns.filter(t => t.recovery_status === "FLAGGED_FOR_APPROVAL").length;
+      const btn = $("approveAllBtn");
+      if (flaggedCount > 0) {
+        btn.classList.remove("hidden");
+        btn.textContent = `🚨 Approve All Flagged (${flaggedCount})`;
+      } else {
+        btn.classList.add("hidden");
+      }
     }
 
     async function loadTransactions() {
@@ -408,6 +422,29 @@
       $("drawer").classList.remove("open");
       $("scrim").classList.remove("open");
     }
+
+    $("approveAllBtn").addEventListener("click", async () => {
+      const btn = $("approveAllBtn");
+      const flagged = allTxns.filter(t => t.recovery_status === "FLAGGED_FOR_APPROVAL");
+      if (!flagged.length) return;
+      btn.disabled = true;
+      btn.textContent = "Approving…";
+      let done = 0, failed = 0;
+      for (const txn of flagged) {
+        try {
+          const res = await fetch("/api/v1/guardrails/approve/" + txn.id, {
+            method: "POST",
+            headers: { "X-API-KEY": "demo_dashboard_key" },
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || "failed");
+          done++;
+        } catch (_) { failed++; }
+      }
+      toast(`✅ Approved ${done} transaction${done !== 1 ? "s" : ""}${failed ? ` · ${failed} failed` : ""}`);
+      btn.disabled = false;
+      await refresh();
+    });
 
     $("simulateBtn").addEventListener("click", async () => {
       const btn = $("simulateBtn");
