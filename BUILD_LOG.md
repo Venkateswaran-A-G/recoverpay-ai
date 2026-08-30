@@ -104,6 +104,13 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 
 ---
 
+### [Entry #19] Voice permission moved off the page center
+- **Status**: 🟢 COMPLETE
+- **Component**: `frontend/index.html`
+- **What happened**: Mid-page and table-row Accept/Decline banners were crowding the dashboard. They are now a left-side slide-in notification (`#voicePermissionBanner`) so the table stays clean.
+
+---
+
 ### [Entry #18] Merchant permission gate for AI voice call
 - **Status**: 🟢 COMPLETE
 - **Component**: `backend/main.py` + `frontend/index.html`

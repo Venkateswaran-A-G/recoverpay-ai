@@ -271,3 +271,13 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `tests/test_main.py` — batch one-slot + decline + no auto-dial
   - `PROMPT_LOG.md`, `BUILD_LOG.md`
 - **Actions Executed**: `pytest`. Smoke-tested simulator at localhost:8000 without placing a call. Committed and pushed.
+
+---
+
+### [Prompt #26] - Move voice permission UI to left-side notification
+- **Timestamp**: 2026-08-30 / Voice permission UI
+- **Exact User Prompt**: "i don't want the accept call thing in the middle i want it like a notification on the left side"
+- **Files Created / Modified**:
+  - `frontend/index.html` — removed mid-page and row Accept banners; added fixed left-side toast notification
+  - `PROMPT_LOG.md`, `BUILD_LOG.md`
+- **Actions Executed**: Relocated merchant voice permission to a left-edge notification card. Committed and pushed.
