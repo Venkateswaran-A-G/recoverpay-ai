@@ -121,6 +121,16 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
 
 ---
 
+### [Prompt #17] - Remove WhatsApp Phone Simulator
+- **Timestamp**: 2026-08-30 / Dashboard cleanup
+- **Exact User Prompt**: "Please update frontend/index.html to completely remove the Built-in Web WhatsApp Phone Simulator modal/drawer component and its related JS code. Keep the clean dashboard layout focused on: RazorpayX Header, Metric Cards, Search & Filters, Regional Table, and Audit Drawer."
+- **Files Created / Modified**:
+  - `frontend/index.html` (removed CSS, HTML modal, and all JS for phone simulator; reverted `openAudit()` and `closeDrawer()` to clean state)
+  - `PROMPT_LOG.md`
+- **Actions Executed**: Stripped all phone simulator code. `pytest` → 30 passed. Committed and pushed.
+
+---
+
 ### [Prompt #16] - Interactive 3D WhatsApp Phone Simulator
 - **Timestamp**: 2026-08-30 / Frontend phone simulator
 - **Exact User Prompt**: "Please add an interactive Web WhatsApp Phone Simulator Drawer/Modal to frontend/index.html: 3D Smartphone Mockup Frame with notch, status bar, and WhatsApp chat header. Dynamic Chat Bubble when user clicks 'Inspect Audit'. Typing Indicator Animation. Interactive Phone Reply Box — type 'STOP' to trigger POST /api/v1/webhooks/whatsapp."

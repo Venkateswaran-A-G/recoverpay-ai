@@ -99,26 +99,6 @@
       background: rgba(14, 165, 233, 0.14);
       color: inherit;
     }
-    /* ── WhatsApp Phone Simulator ─────────────────────────────── */
-    #phone-scrim { display:none; }
-    #phone-scrim.open { display:flex; }
-    .typing-dot {
-      width:8px; height:8px; border-radius:50%;
-      background:rgba(255,255,255,0.55);
-      display:inline-block;
-      animation:typeBounce 1.1s ease-in-out infinite;
-    }
-    .typing-dot:nth-child(2){animation-delay:0.18s}
-    .typing-dot:nth-child(3){animation-delay:0.36s}
-    @keyframes typeBounce {
-      0%,80%,100%{transform:translateY(0);opacity:0.55}
-      40%{transform:translateY(-7px);opacity:1}
-    }
-    .wa-bubble-in  { animation:bubbleIn 0.22s ease-out both; }
-    @keyframes bubbleIn {
-      from{opacity:0;transform:translateY(8px) scale(0.96)}
-      to{opacity:1;transform:none}
-    }
   </style>
 </head>
 <body class="text-slate-900 dark:text-slate-100 min-h-screen relative overflow-x-hidden">
@@ -225,64 +205,6 @@
     <div id="nodes" class="node-3d space-y-0"></div>
   </aside>
   <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 glass rounded-lg px-3.5 py-2.5 text-xs">Toast</div>
-
-  <!-- ── WhatsApp 3D Phone Simulator ─────────────────────────────────── -->
-  <div id="phone-scrim" class="fixed inset-0 z-[60] items-center justify-center bg-black/75 backdrop-blur-md p-4" onclick="if(event.target===this)closePhoneSim()">
-    <div class="relative flex flex-col items-center" style="width:300px;max-width:96vw">
-      <!-- Top label + close -->
-      <div class="flex items-center justify-between w-full mb-3 px-1">
-        <span class="text-xs font-semibold text-white/60 tracking-wide uppercase">📱 WhatsApp Preview</span>
-        <button id="closePhone" class="text-white/50 hover:text-white text-xs flex items-center gap-1">✕ Close</button>
-      </div>
-      <!-- Phone shell -->
-      <div class="w-full rounded-[44px] overflow-hidden" style="border:7px solid #2d3748;box-shadow:0 48px 80px rgba(0,0,0,0.9),0 0 0 1px rgba(255,255,255,0.04);background:#111b21">
-        <!-- Notch + status bar -->
-        <div class="relative pt-2 pb-0" style="background:#111b21">
-          <div class="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-[22px] rounded-b-[18px]" style="background:#2d3748"></div>
-          <div class="flex justify-between items-center px-6 pt-2.5 pb-1">
-            <span class="text-[10px] font-semibold text-white/55">9:41 AM</span>
-            <span class="text-[10px] text-white/55">▌▌▌▌ 5G 🔋</span>
-          </div>
-        </div>
-        <!-- WA header -->
-        <div class="flex items-center gap-2.5 px-3 py-2.5" style="background:#1f2c34">
-          <svg class="w-4 h-4 text-white/40 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-          <div class="w-9 h-9 rounded-full flex items-center justify-center text-base flex-shrink-0" style="background:#00a884">🛍️</div>
-          <div class="flex-1 min-w-0">
-            <div class="text-white text-[13px] font-semibold leading-tight truncate">KetoKrafts Store 🛍️</div>
-            <div class="flex items-center gap-1 mt-0.5">
-              <span class="w-1.5 h-1.5 rounded-full" style="background:#25d366"></span>
-              <span class="text-[10px]" style="color:#25d366">Online</span>
-            </div>
-          </div>
-          <div class="flex gap-3 text-white/35 flex-shrink-0">
-            <svg class="w-[15px] h-[15px]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3-8.57A2 2 0 012.11 1h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 8.09a16 16 0 006 6l.46-.46a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
-            <svg class="w-[15px] h-[15px]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
-          </div>
-        </div>
-        <!-- Chat area -->
-        <div id="wa-chat" class="overflow-y-auto p-3 flex flex-col gap-2.5" style="min-height:330px;max-height:330px;background:#111b21">
-          <div class="flex justify-center">
-            <span class="text-[10px] text-white/30 px-3 py-0.5 rounded-full" style="background:rgba(255,255,255,0.05)">Today</span>
-          </div>
-        </div>
-        <!-- Input -->
-        <div class="flex items-center gap-2 p-2.5" style="background:#1f2c34">
-          <div class="flex-1 flex items-center rounded-full px-3 py-2" style="background:#2a3942">
-            <input id="wa-reply" type="text" maxlength="120" autocomplete="off"
-              placeholder='Reply or type "STOP" to opt out…'
-              class="flex-1 bg-transparent text-white text-[11px] outline-none placeholder:text-white/25" />
-          </div>
-          <button id="wa-send" class="w-9 h-9 rounded-full flex items-center justify-center text-white flex-shrink-0" style="background:#00a884">
-            <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          </button>
-        </div>
-      </div>
-      <!-- Hint -->
-      <p class="text-[10px] text-white/25 mt-3 text-center">Type <span class="font-mono text-white/40">STOP</span> and Send to trigger live opt-out on the dashboard</p>
-    </div>
-  </div>
-  <!-- ── End Phone Simulator ─────────────────────────────────────────── -->
 
   <script>
     const INR = new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -461,8 +383,6 @@
       });
       $("drawer").classList.add("open");
       $("scrim").classList.add("open");
-      // Also open phone simulator if a recovery message exists
-      openPhoneSim(id, data);
     }
 
     function renderDetail(step, log, logs) {
@@ -487,7 +407,6 @@
     function closeDrawer() {
       $("drawer").classList.remove("open");
       $("scrim").classList.remove("open");
-      closePhoneSim();
     }
 
     $("simulateBtn").addEventListener("click", async () => {
@@ -578,138 +497,6 @@
 
     loadHealth();
     refresh().catch(() => {});
-
-    // ── WhatsApp Phone Simulator ─────────────────────────────────────────
-    let _phoneTxnId = null;
-
-    const FAILURE_TIPS = {
-      INSUFFICIENT_FUNDS: "💡 Add ₹50+ to your account, then tap the link again.",
-      TEMPORARY_OUTAGE: "💡 Bank servers were busy — retry in 2 minutes.",
-      EXPIRED_CARD: "💡 Update your card in your banking app first.",
-      AUTHENTICATION_FAILED: "💡 Keep your OTP / UPI PIN ready and tap the link quickly.",
-      USER_DROPOFF: "💡 Your order is saved — complete before the link expires!",
-    };
-
-    function openPhoneSim(txnId, auditData) {
-      const logs = auditData.audit_logs || [];
-
-      // Extract recovery message from LLM or DISPATCH log
-      let recoveryMsg = null, failCat = "USER_DROPOFF";
-      const llmLog = logs.find(l => ["LLM_DIAGNOSIS","LLM_FALLBACK_TRIGGERED"].includes(l.step_name));
-      if (llmLog?.llm_response) {
-        try {
-          const p = JSON.parse(llmLog.llm_response);
-          recoveryMsg = p.hinglish_message || null;
-          failCat = p.failure_category || failCat;
-        } catch(_) {}
-      }
-      if (!recoveryMsg) {
-        const d = logs.find(l => l.step_name === "DISPATCH");
-        if (d?.llm_response) recoveryMsg = d.llm_response;
-      }
-      if (!recoveryMsg) return; // No message — skip simulator
-
-      _phoneTxnId = txnId;
-      const tip = FAILURE_TIPS[failCat] || FAILURE_TIPS.USER_DROPOFF;
-      const linkMatch = recoveryMsg.match(/https?:\/\/\S+/);
-      const payLink = linkMatch ? linkMatch[0] : null;
-      const msgBody = recoveryMsg.replace(payLink || "", "").trim();
-
-      // Show modal
-      const scrim = $("phone-scrim");
-      scrim.classList.remove("hidden");
-      scrim.classList.add("open");
-
-      // Reset chat to just the date badge
-      const chat = $("wa-chat");
-      while (chat.children.length > 1) chat.removeChild(chat.lastChild);
-      $("wa-reply").value = "";
-
-      // Typing indicator → then message
-      setTimeout(() => {
-        const typing = document.createElement("div");
-        typing.id = "wa-typing";
-        typing.className = "flex items-end gap-1.5 wa-bubble-in";
-        typing.innerHTML = `
-          <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs flex-shrink-0" style="background:#00a884">🛍️</div>
-          <div class="flex gap-1 px-3 py-2.5 rounded-2xl rounded-bl-none" style="background:#1f2c34">
-            <span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>
-          </div>
-          <span class="text-[9px] text-white/25 self-end mb-0.5">KetoKrafts is typing…</span>`;
-        chat.appendChild(typing);
-        chat.scrollTop = chat.scrollHeight;
-
-        setTimeout(() => {
-          typing.remove();
-          const bubble = document.createElement("div");
-          bubble.className = "flex items-end gap-1.5 wa-bubble-in";
-          bubble.innerHTML = `
-            <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs flex-shrink-0" style="background:#00a884">🛍️</div>
-            <div class="rounded-2xl rounded-bl-none px-3 py-2.5 max-w-[85%]" style="background:#1f2c34">
-              <p class="text-white/90 text-[11px] leading-relaxed mb-2">${escapeHtml(msgBody)}</p>
-              <p class="text-[10px] mb-2" style="color:#25d366">${escapeHtml(tip)}</p>
-              ${payLink ? `<a href="${escapeHtml(payLink)}" target="_blank" rel="noopener"
-                  class="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl text-white text-[11px] font-semibold"
-                  style="background:#00a884">🔗 Pay via Razorpay UPI</a>` : ""}
-              <p class="text-right text-[9px] text-white/25 mt-1.5">9:41 AM ✓✓</p>
-            </div>`;
-          chat.appendChild(bubble);
-          chat.scrollTop = chat.scrollHeight;
-        }, 1600);
-      }, 450);
-    }
-
-    function closePhoneSim() {
-      $("phone-scrim").classList.remove("open");
-      $("phone-scrim").classList.add("hidden");
-      _phoneTxnId = null;
-    }
-
-    $("closePhone").addEventListener("click", closePhoneSim);
-
-    $("wa-reply").addEventListener("keydown", e => { if (e.key === "Enter") $("wa-send").click(); });
-
-    $("wa-send").addEventListener("click", async () => {
-      const input = $("wa-reply");
-      const msg = input.value.trim();
-      if (!msg) return;
-      input.value = "";
-
-      const chat = $("wa-chat");
-      // Customer outgoing bubble (right side, teal)
-      const outBubble = document.createElement("div");
-      outBubble.className = "flex justify-end wa-bubble-in";
-      outBubble.innerHTML = `
-        <div class="rounded-2xl rounded-br-none px-3 py-2 max-w-[75%]" style="background:#005c4b">
-          <p class="text-white text-[11px]">${escapeHtml(msg)}</p>
-          <p class="text-right text-[9px] text-white/25 mt-1">9:41 AM ✓✓</p>
-        </div>`;
-      chat.appendChild(outBubble);
-      chat.scrollTop = chat.scrollHeight;
-
-      const upper = msg.toUpperCase().trim();
-      if (["STOP","OPT OUT","OPTOUT","UNSUBSCRIBE"].includes(upper) && _phoneTxnId) {
-        try {
-          const res = await fetch("/api/v1/webhooks/whatsapp", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-API-KEY": "demo_dashboard_key" },
-            body: JSON.stringify({ transaction_id: _phoneTxnId, message: msg }),
-          });
-          const data = await res.json();
-          setTimeout(() => {
-            const sys = document.createElement("div");
-            sys.className = "flex justify-center wa-bubble-in";
-            sys.innerHTML = `<span class="text-[10px] text-white/35 px-3 py-0.5 rounded-full" style="background:rgba(255,255,255,0.06)">⛔ You have been opted out of recovery messages</span>`;
-            chat.appendChild(sys);
-            chat.scrollTop = chat.scrollHeight;
-          }, 700);
-          toast("⛔ Opted out · " + (data.transactions_updated || 0) + " transaction(s) updated");
-          await refresh();
-        } catch(err) {
-          toast("Opt-out failed: " + String(err.message || err));
-        }
-      }
-    });
   </script>
 </body>
 </html>
