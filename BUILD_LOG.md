@@ -104,6 +104,14 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 
 ---
 
+### [Entry #26] WhatsApp tap did not flip RECOVERY_DISPATCHED → RECOVERED
+- **Status**: 🟢 RESOLVED
+- **Component**: `backend/main.py`
+- **What happened**: After the hyperlink fix, WhatsApp opened `https://rzp.io/...`. That host is not RecoverPay, so `GET /api/v1/recovery/pay/{id}` never ran and status stayed `RECOVERY_DISPATCHED`.
+- **Fix / Action Taken**: WhatsApp Pay now / body URL always points at RecoverPay. Localhost is wrapped with `https://href.li/?` so it stays clickable. Optional loca.lt tunnel exposes the same endpoint to phones. Link previews are off so crawlers cannot mark recovered early.
+
+---
+
 ### [Entry #25] WhatsApp localhost URL rendered as plain text
 - **Status**: 🟢 RESOLVED
 - **Component**: `backend/agent.py`, `backend/main.py`

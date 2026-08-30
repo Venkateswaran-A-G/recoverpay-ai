@@ -454,11 +454,20 @@ def test_approve_all_pending_reviews(client):
 
 def test_whatsapp_payment_link_never_uses_localhost(monkeypatch):
     monkeypatch.setenv("PUBLIC_BASE_URL", "http://127.0.0.1:8000")
-    link = whatsapp_payment_link(
-        "a5ece3b6-1f02-4200-baf9-0c1b9310c831",
-        "https://rzp.io/l/abc123def456",
-    )
+    txn_id = "a5ece3b6-1f02-4200-baf9-0c1b9310c831"
+    link = whatsapp_payment_link(txn_id, "https://rzp.io/l/abc123def456")
     assert link.startswith("https://")
-    assert "127.0.0.1" not in link
-    assert "localhost" not in link
+    assert "rzp.io" not in link
+    assert txn_id in link
+    assert "recovery/pay" in link
+    from backend.agent import is_whatsapp_linkifiable
+
+    assert is_whatsapp_linkifiable(link) is True
+
+
+def test_whatsapp_payment_link_uses_public_recover_url(monkeypatch):
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://demo.recoverpay.test")
+    txn_id = "a5ece3b6-1f02-4200-baf9-0c1b9310c831"
+    link = whatsapp_payment_link(txn_id, "https://rzp.io/l/should-not-win")
+    assert link == f"https://demo.recoverpay.test/api/v1/recovery/pay/{txn_id}"
 

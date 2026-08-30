@@ -565,18 +565,13 @@ def send_green_api_message(
                 file=sys.stderr,
             )
 
+        # Do not enable linkPreview: WhatsApp/Green API crawlers would GET the
+        # recover URL and mark RECOVERED before the customer taps.
         payload: dict[str, Any] = {
             "chatId": chat_id,
             "message": message_text,
-            "linkPreview": True,
-            "typePreview": "large",
+            "linkPreview": False,
         }
-        if clickable:
-            payload["customPreview"] = {
-                "title": "Pay now · RecoverPay AI",
-                "description": "1-click UPI recovery payment",
-                "link": clickable,
-            }
         resp = _requests.post(
             f"{base}/sendMessage/{token}",
             json=payload,

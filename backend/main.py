@@ -24,6 +24,7 @@ from backend.agent import (
     send_green_api_message,
 )
 from backend.database import get_db, init_db
+from backend.tunnel import ensure_public_tunnel, read_tunnel_base
 from backend.guardrails import evaluate_guardrails, is_opted_out
 from backend.models import AuditLog, OptOutRegistry, Transaction
 from backend.razorpay_client import (
@@ -243,6 +244,7 @@ def compute_bank_health(db: Session) -> dict[str, dict[str, Any]]:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     init_db()
+    ensure_public_tunnel(int(os.getenv("PORT", "8000")))
     yield
 
 
@@ -457,7 +459,14 @@ def compute_metrics(db: Session) -> DashboardMetrics:
 
 
 def public_app_base() -> str:
-    return os.getenv("PUBLIC_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
+    env = os.getenv("PUBLIC_BASE_URL", "").strip().rstrip("/")
+    if env and is_whatsapp_linkifiable(env):
+        return env
+    if not is_test_mode():
+        tunnel = read_tunnel_base()
+        if tunnel:
+            return tunnel.rstrip("/")
+    return env or "http://127.0.0.1:8000"
 
 
 def recovery_pay_url(txn_id: str) -> str:
@@ -465,14 +474,18 @@ def recovery_pay_url(txn_id: str) -> str:
     return f"{public_app_base()}/api/v1/recovery/pay/{txn_id}"
 
 
-def whatsapp_payment_link(txn_id: str, rzp_link: str) -> str:
-    """Pick a URL WhatsApp will render as a blue hyperlink (never localhost)."""
+def whatsapp_payment_link(txn_id: str, rzp_link: str | None = None) -> str:
+    """Always land on RecoverPay so a tap marks RECOVERED.
+
+    WhatsApp only hyperlinks public https hosts. Local RecoverPay URLs are
+    wrapped with href.li so the bubble is clickable but the browser still
+    opens ``/api/v1/recovery/pay/{id}``. Razorpay ``rzp.io`` links are never
+    used as the WhatsApp target — they cannot update RecoverPay status.
+    """
     recover = recovery_pay_url(txn_id)
     if is_whatsapp_linkifiable(recover):
         return recover
-    if is_whatsapp_linkifiable(rzp_link):
-        return rzp_link
-    return f"https://rzp.io/l/{txn_id.replace('-', '')[:12]}"
+    return f"https://href.li/?{recover}"
 
 
 def mark_payment_recovered(

@@ -353,3 +353,17 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `.env.example` — `PUBLIC_BASE_URL` note
   - `PROMPT_LOG.md`, `BUILD_LOG.md`
 - **Actions Executed**: WhatsApp never linkifies localhost. Switched outbound copy to a public HTTPS Razorpay URL on its own line, plus a Pay now button. Pytest, commit, push.
+
+---
+
+### [Prompt #33] - WhatsApp link click did not mark RECOVERED
+- **Timestamp**: 2026-08-30 / RecoverPay click destination
+- **Exact User Prompt**: "but if i click the link the Status is not converted from recovery dispatched to recovered"
+- **Files Created / Modified**:
+  - `backend/main.py` — WhatsApp target is always `/api/v1/recovery/pay/{id}` (never rzp.io); href.li wrap for localhost
+  - `backend/tunnel.py` — optional loca.lt public origin
+  - `backend/agent.py` — disable linkPreview so crawlers do not auto-recover
+  - `frontend/index.html` — Confirm payment action + 8s refresh
+  - `tests/test_main.py`, `.gitignore`, `.env.example`
+  - `PROMPT_LOG.md`, `BUILD_LOG.md`
+- **Actions Executed**: Clicking rzp.io never notified RecoverPay. New messages land on the recover endpoint so a tap sets RECOVERED + PAYMENT_EVIDENCE_CONFIRMED. Pytest, commit, push.

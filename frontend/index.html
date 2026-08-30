@@ -484,6 +484,7 @@
         const voicePending = txn.recovery_status === "REQUIRES_VOICE_CALL_PERMISSION";
         const voiceHigh = Number(txn.amount) > 20000;
         const flagged = txn.recovery_status === "FLAGGED_FOR_APPROVAL";
+        const dispatched = txn.recovery_status === "RECOVERY_DISPATCHED";
         const row = document.createElement("article");
         row.className = "glass lift rounded-xl px-3.5 py-3 grid gap-3 items-center md:grid-cols-[1.1fr_1.2fr_1.1fr_140px_1fr]" + (voiceHigh || voicePending ? " border-rose-500/40 bg-rose-500/10" : high ? " border-amber-500/40 bg-amber-500/10" : "");
         row.innerHTML = `
@@ -499,6 +500,7 @@
           <div><span class="inline-block rounded-full px-2 py-1 text-[10px] font-semibold ${PILL[txn.recovery_status] || PILL.PENDING}">${prettyStatus(txn.recovery_status)}</span></div>
           <div class="flex flex-wrap gap-1.5 justify-end">
             ${flagged && !voiceHigh ? `<button class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-amber-800 dark:text-amber-300 bg-amber-500/15 border border-amber-500/40" data-approve="${txn.id}">🚨 Approve &amp; Send (&gt;₹5K)</button>` : ""}
+            ${dispatched ? `<a class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-emerald-800 dark:text-emerald-200 bg-emerald-500/15 border border-emerald-500/40" href="/api/v1/recovery/pay/${txn.id}" target="_blank" rel="noopener">Confirm payment</a>` : ""}
             <button class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold bg-white/80 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800/80" data-inspect="${txn.id}">Inspect Audit</button>
           </div>`;
         stream.appendChild(row);
@@ -927,6 +929,10 @@
 
     // Auto-refresh widget every 30 s
     setInterval(loadBankHealth, 30000);
+    setInterval(() => {
+      loadTransactions().catch(() => {});
+      loadMetrics().catch(() => {});
+    }, 8000);
   </script>
 </body>
 </html>
