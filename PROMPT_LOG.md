@@ -257,3 +257,17 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `tests/test_main.py` — voice approve-and-call coverage (TEST_MODE skips live Twilio)
   - `PROMPT_LOG.md`, `BUILD_LOG.md`
 - **Actions Executed**: `pip install twilio`. `pytest`. Dashboard/API smoke on localhost:8000. Committed and pushed (`.env` not committed).
+
+---
+
+### [Prompt #25] - Merchant permission gate for >₹20,000 AI voice call
+- **Timestamp**: 2026-08-30 / Voice permission gate
+- **Exact User Prompt**: "Update Batch Simulator so every 20-payment run has EXACTLY ONE transaction > ₹20,000 and the remaining 19 strictly under 19000. Set that transaction to REQUIRES_VOICE_CALL_PERMISSION. Do NOT auto-dial. Add Accept & Place AI Voice Call / Decline Call webpage notification. Call is placed ONLY IF merchant clicks Accept. Status VOICE_CALL_DISPATCHED and audit REAL_PHONE_VOICE_CALL_PLACED."
+- **Files Created / Modified**:
+  - `.env` (local only, gitignored) — Twilio credentials confirmed
+  - `backend/schemas.py` — `REQUIRES_VOICE_CALL_PERMISSION`, `VOICE_CALL_DECLINED`, permission/decline audit steps
+  - `backend/main.py` — simulator one-slot high-value assignment; voice approve gated on permission status; `POST /api/v1/voice/decline/{id}`
+  - `frontend/index.html` — page + row permission banner with Accept / Decline
+  - `tests/test_main.py` — batch one-slot + decline + no auto-dial
+  - `PROMPT_LOG.md`, `BUILD_LOG.md`
+- **Actions Executed**: `pytest`. Smoke-tested simulator at localhost:8000 without placing a call. Committed and pushed.

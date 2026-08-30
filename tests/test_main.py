@@ -242,7 +242,7 @@ def test_voice_approve_and_call_high_value(client):
     )
     assert ingest.status_code == 202
     txn_id = ingest.json()["transaction_id"]
-    assert ingest.json()["recovery_status"] == RecoveryStatus.FLAGGED_FOR_APPROVAL.value
+    assert ingest.json()["recovery_status"] == RecoveryStatus.REQUIRES_VOICE_CALL_PERMISSION.value
 
     too_low = _webhook_body(entity_overrides={"id": "pay_voice_low", "amount": 750000})
     low_body = json.dumps(too_low).encode()
@@ -269,3 +269,42 @@ def test_voice_approve_and_call_high_value(client):
     detail = test_client.get(f"/api/v1/audit-logs/{txn_id}", headers={"X-API-KEY": "demo_dashboard_key"})
     steps = {row["step_name"] for row in detail.json()["audit_logs"]}
     assert "REAL_PHONE_VOICE_CALL_PLACED" in steps
+
+
+def test_voice_call_not_auto_dialed_and_can_be_declined(client):
+    test_client, _ = client
+    payload = _webhook_body(entity_overrides={"id": "pay_voice_decline", "amount": 3500000})
+    body = json.dumps(payload).encode()
+    ingest = test_client.post(
+        "/api/v1/webhooks/razorpay",
+        content=body,
+        headers={"Content-Type": "application/json", "X-Razorpay-Signature": _sign(body)},
+    )
+    assert ingest.json()["recovery_status"] == RecoveryStatus.REQUIRES_VOICE_CALL_PERMISSION.value
+    decline = test_client.post(
+        f"/api/v1/voice/decline/{ingest.json()['transaction_id']}",
+        headers={"X-API-KEY": "demo_dashboard_key"},
+    )
+    assert decline.status_code == 200
+    assert decline.json()["recovery_status"] == RecoveryStatus.VOICE_CALL_DECLINED.value
+
+
+def test_batch_simulator_exactly_one_voice_permission_txn(client):
+    test_client, _ = client
+    batch = test_client.post(
+        "/api/v1/simulator/run-batch?count=20&simulate_recoveries=false",
+        headers={"X-API-KEY": "demo_dashboard_key"},
+    )
+    assert batch.status_code == 200
+    txns = test_client.get(
+        "/api/v1/transactions?limit=200",
+        headers={"X-API-KEY": "demo_dashboard_key"},
+    ).json()
+    over_20k = [t for t in txns if float(t["amount"]) > 20000]
+    under_19k = [t for t in txns if float(t["amount"]) < 19000]
+    assert len(over_20k) == 1
+    assert len(under_19k) == 19
+    assert float(over_20k[0]["amount"]) in {25000.0, 35000.0, 45000.0}
+    assert over_20k[0]["recovery_status"] == RecoveryStatus.REQUIRES_VOICE_CALL_PERMISSION.value
+    assert all(t["recovery_status"] != RecoveryStatus.VOICE_CALL_DISPATCHED.value for t in txns)
+

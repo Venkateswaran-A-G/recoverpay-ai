@@ -522,6 +522,18 @@ def process_failure_event(
         )
 
     if guardrail.requires_human_approval:
+        if Decimal(txn.amount) > VOICE_CALL_THRESHOLD_INR:
+            txn.recovery_status = RecoveryStatus.REQUIRES_VOICE_CALL_PERMISSION.value
+            write_audit(
+                db,
+                transaction_id=txn.id,
+                step_name=AuditStepName.VOICE_CALL_PERMISSION_REQUIRED.value,
+                step_status=AuditStepStatus.WARNING.value,
+                raw_payload={
+                    "amount": str(txn.amount),
+                    "note": "Merchant permission required before AI voice call",
+                },
+            )
         db.commit()
         return WebhookIngestResponse(
             accepted=True,
@@ -731,6 +743,11 @@ def approve_high_value(
             status_code=409,
             detail=f"Transaction is {txn.recovery_status}, not FLAGGED_FOR_APPROVAL",
         )
+    if Decimal(txn.amount) > VOICE_CALL_THRESHOLD_INR:
+        raise HTTPException(
+            status_code=409,
+            detail="Amount > ₹20,000 requires merchant voice permission — use Accept & Place AI Voice Call",
+        )
 
     language_register, _ = dispatch_recovery(db, txn)
     db.commit()
@@ -803,10 +820,10 @@ def approve_and_place_voice_call(
             status_code=409,
             detail=f"Voice call requires amount > ₹{VOICE_CALL_THRESHOLD_INR}",
         )
-    if txn.recovery_status != RecoveryStatus.FLAGGED_FOR_APPROVAL.value:
+    if txn.recovery_status != RecoveryStatus.REQUIRES_VOICE_CALL_PERMISSION.value:
         raise HTTPException(
             status_code=409,
-            detail=f"Transaction is {txn.recovery_status}, not FLAGGED_FOR_APPROVAL",
+            detail=f"Transaction is {txn.recovery_status}, not REQUIRES_VOICE_CALL_PERMISSION",
         )
     if is_opted_out(db, txn.customer_phone):
         raise HTTPException(status_code=409, detail="Customer is opted out — voice call blocked")
@@ -836,6 +853,40 @@ def approve_and_place_voice_call(
     )
 
 
+@app.post("/api/v1/voice/decline/{transaction_id}", response_model=ApproveResponse)
+def decline_voice_call(
+    transaction_id: str,
+    db: Session = Depends(get_db),
+    x_api_key: str | None = Header(default=None, alias="X-API-KEY"),
+) -> ApproveResponse:
+    """Merchant declined the AI voice call — no Twilio dial is placed."""
+    _dashboard_authorized(x_api_key)
+    txn = db.get(Transaction, transaction_id)
+    if txn is None:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if txn.recovery_status != RecoveryStatus.REQUIRES_VOICE_CALL_PERMISSION.value:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Transaction is {txn.recovery_status}, not REQUIRES_VOICE_CALL_PERMISSION",
+        )
+    txn.recovery_status = RecoveryStatus.VOICE_CALL_DECLINED.value
+    write_audit(
+        db,
+        transaction_id=txn.id,
+        step_name=AuditStepName.VOICE_CALL_DECLINED.value,
+        step_status=AuditStepStatus.WARNING.value,
+        raw_payload={"channel": "twilio_voice", "decision": "declined"},
+    )
+    db.commit()
+    return ApproveResponse(
+        transaction_id=txn.id,
+        recovery_status=txn.recovery_status,
+        requires_human_approval=False,
+        language_register=None,
+        message="Merchant declined AI voice call — no dial placed",
+    )
+
+
 @app.post("/api/v1/simulator/run-batch", response_model=BatchSimulatorResponse)
 def run_batch_simulator(
     count: int = Query(default=20, ge=1, le=100),
@@ -849,6 +900,11 @@ def run_batch_simulator(
         db.flush()
 
     flagged = opted = dispatched = recovered = max_retries = 0
+    voice_amounts = (Decimal("25000.00"), Decimal("35000.00"), Decimal("45000.00"))
+    # Exactly one > ₹20,000 slot per batch; never opt-out that row so the permission gate is visible.
+    voice_index = next((i for i in range(count) if i % 13 != 0), 0)
+    if count >= 12:
+        voice_index = 11
     for index in range(count):
         state = SIM_STATES[index % len(SIM_STATES)]
         names = SIM_NAMES[state]
@@ -856,13 +912,13 @@ def run_batch_simulator(
         amount = Decimal("1499.00")
         retry_count = 0
         phone = f"+9198{index:08d}"
-        if index % 7 == 0:
+        if index == voice_index:
+            amount = voice_amounts[index % 3]
+        elif index % 7 == 0:
             amount = Decimal("7500.00")
-        elif index % 11 == 0:
-            amount = Decimal("25000.00")
         elif index % 5 == 0:
             retry_count = 2
-        if index % 13 == 0:
+        if index % 13 == 0 and index != voice_index:
             phone = OPT_OUT_SIM_PHONE
 
         result = process_failure_event(

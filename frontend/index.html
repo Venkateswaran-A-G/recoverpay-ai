@@ -161,6 +161,20 @@
       </div>
     </section>
 
+    <section id="voicePermissionBanner" class="hidden glass lift rounded-2xl px-4 py-3.5 mb-6 border-rose-500/40 bg-rose-500/10">
+      <div class="flex flex-col sm:flex-row sm:items-start gap-3">
+        <div class="text-2xl leading-none">🚨</div>
+        <div class="flex-1">
+          <p id="voicePermissionCopy" class="text-rose-800 dark:text-rose-200 text-sm font-semibold">🚨 HIGH-VALUE FAILURE (₹25,000): Requesting Merchant Permission for AI Voice Call to Customer</p>
+          <p class="text-[12px] text-rose-900/80 dark:text-rose-100/80 mt-1">AI voice call is placed only after you accept. Decline leaves the customer uncalled.</p>
+          <div class="flex flex-wrap gap-2 mt-3">
+            <button id="voiceAcceptBtn" type="button" class="rounded-lg px-3 py-1.5 text-[12px] font-semibold text-rose-800 dark:text-rose-100 bg-rose-500/20 border border-rose-500/40">📞 Accept &amp; Place AI Voice Call</button>
+            <button id="voiceDeclineBtn" type="button" class="rounded-lg px-3 py-1.5 text-[12px] font-semibold text-slate-700 dark:text-slate-200 bg-white/80 dark:bg-slate-900/70 border border-slate-300 dark:border-slate-700">❌ Decline Call</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="glass rounded-2xl p-4 mb-4 space-y-3">
       <div class="flex flex-col lg:flex-row gap-3">
         <label class="sr-only" for="searchInput">Search</label>
@@ -179,6 +193,7 @@
         <button type="button" data-status="RECOVERY_DISPATCHED" class="chip rounded-full px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800">📩 Dispatched</button>
         <button type="button" data-status="OPTED_OUT" class="chip rounded-full px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800">⛔ Opted-Out</button>
         <button type="button" data-status="BANK_OUTAGE_HOLD" class="chip rounded-full px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800">🏦 Bank Outage Hold</button>
+        <button type="button" data-status="REQUIRES_VOICE_CALL_PERMISSION" class="chip rounded-full px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800">📞 Voice Permission</button>
         <button type="button" data-status="VOICE_CALL_DISPATCHED" class="chip rounded-full px-2.5 py-1 text-[11px] font-semibold bg-slate-100 dark:bg-slate-800">📞 Voice Dispatched</button>
       </div>
       <div class="flex flex-wrap gap-1.5" id="regionFilters">
@@ -257,7 +272,7 @@
       { key: "GUARDRAIL_CHECK", label: "Guardrails", match: ["GUARDRAIL_CHECK"] },
       { key: "LLM", label: "Regional LLM Diagnosis", match: ["LLM_DIAGNOSIS", "LLM_FALLBACK_TRIGGERED"] },
       { key: "DISPATCH", label: "Dispatch", match: ["DISPATCH", "PAYMENT_LINK_GEN"] },
-      { key: "VOICE", label: "Voice Call", match: ["REAL_PHONE_VOICE_CALL_PLACED"] },
+      { key: "VOICE", label: "Voice Call", match: ["REAL_PHONE_VOICE_CALL_PLACED", "VOICE_CALL_PERMISSION_REQUIRED", "VOICE_CALL_DECLINED"] },
     ];
     const PILL = {
       PENDING: "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
@@ -269,7 +284,9 @@
       MAX_RETRIES_REACHED: "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
       BANK_OUTAGE_HOLD: "bg-orange-500/15 text-orange-700 dark:text-orange-300",
       RETRY_SCHEDULED_POST_BANK_RECOVERY: "bg-purple-500/15 text-purple-700 dark:text-purple-300",
+      REQUIRES_VOICE_CALL_PERMISSION: "bg-rose-500/15 text-rose-800 dark:text-rose-200",
       VOICE_CALL_DISPATCHED: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
+      VOICE_CALL_DECLINED: "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
     };
 
     let allTxns = [];
@@ -355,15 +372,17 @@
         : "Waiting for a batch";
       rows.forEach((txn) => {
         const high = Number(txn.amount) > 5000 || txn.recovery_status === "FLAGGED_FOR_APPROVAL";
+        const voicePending = txn.recovery_status === "REQUIRES_VOICE_CALL_PERMISSION";
         const voiceHigh = Number(txn.amount) > 20000;
         const flagged = txn.recovery_status === "FLAGGED_FOR_APPROVAL";
         const row = document.createElement("article");
-        row.className = "glass lift rounded-xl px-3.5 py-3 grid gap-3 items-center md:grid-cols-[1.1fr_1.2fr_1.1fr_140px_1fr]" + (voiceHigh ? " border-rose-500/40 bg-rose-500/10" : high ? " border-amber-500/40 bg-amber-500/10" : "");
-        const voiceBanner = voiceHigh
+        row.className = "glass lift rounded-xl px-3.5 py-3 grid gap-3 items-center md:grid-cols-[1.1fr_1.2fr_1.1fr_140px_1fr]" + (voiceHigh || voicePending ? " border-rose-500/40 bg-rose-500/10" : high ? " border-amber-500/40 bg-amber-500/10" : "");
+        const voiceBanner = voicePending
           ? `<div class="md:col-span-5 rounded-lg px-3 py-2 text-[11px] font-semibold text-rose-800 dark:text-rose-200 bg-rose-500/15 border border-rose-500/30">🚨 HIGH-VALUE FAILURE (₹25,000): Requesting Merchant Permission for AI Voice Call to Customer</div>`
           : "";
-        const voiceBtn = (flagged && voiceHigh)
-          ? `<button class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-rose-800 dark:text-rose-200 bg-rose-500/20 border border-rose-500/40" data-voice-call="${txn.id}">📞 Approve &amp; Dial Real Mobile Phone</button>`
+        const voiceBtns = voicePending
+          ? `<button class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-rose-800 dark:text-rose-200 bg-rose-500/20 border border-rose-500/40" data-voice-call="${txn.id}">📞 Accept &amp; Place AI Voice Call</button>
+            <button class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold bg-white/80 dark:bg-slate-900/70 border border-slate-300 dark:border-slate-700" data-voice-decline="${txn.id}">❌ Decline Call</button>`
           : "";
         row.innerHTML = `
           ${voiceBanner}
@@ -378,7 +397,7 @@
           </div>
           <div><span class="inline-block rounded-full px-2 py-1 text-[10px] font-semibold ${PILL[txn.recovery_status] || PILL.PENDING}">${prettyStatus(txn.recovery_status)}</span></div>
           <div class="flex flex-wrap gap-1.5 justify-end">
-            ${voiceBtn}
+            ${voiceBtns}
             ${flagged && !voiceHigh ? `<button class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-amber-800 dark:text-amber-300 bg-amber-500/15 border border-amber-500/40" data-approve="${txn.id}">🚨 Approve &amp; Send (&gt;₹5K)</button>` : ""}
             <button class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold bg-white/80 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800/80" data-inspect="${txn.id}">Inspect Audit</button>
           </div>`;
@@ -388,6 +407,7 @@
 
     function applyFilters() {
       renderRows(filteredTxns());
+      syncVoicePermissionBanner();
       // Show "Approve All" only when there are flagged transactions
       const flaggedCount = allTxns.filter(t => t.recovery_status === "FLAGGED_FOR_APPROVAL" && Number(t.amount) <= 20000).length;
       const btn = $("approveAllBtn");
@@ -402,6 +422,68 @@
     async function loadTransactions() {
       allTxns = await (await fetch("/api/v1/transactions?limit=200", { headers: { "X-API-KEY": "demo_dashboard_key" } })).json();
       applyFilters();
+    }
+
+    function pendingVoiceTxn() {
+      return allTxns.find((t) => t.recovery_status === "REQUIRES_VOICE_CALL_PERMISSION") || null;
+    }
+
+    function syncVoicePermissionBanner() {
+      const banner = $("voicePermissionBanner");
+      const pending = pendingVoiceTxn();
+      if (!banner) return;
+      banner.classList.toggle("hidden", !pending);
+      const acceptBtn = $("voiceAcceptBtn");
+      const declineBtn = $("voiceDeclineBtn");
+      acceptBtn.disabled = !pending;
+      declineBtn.disabled = !pending;
+      acceptBtn.textContent = "📞 Accept & Place AI Voice Call";
+      if (pending) {
+        acceptBtn.setAttribute("data-voice-id", pending.id);
+        declineBtn.setAttribute("data-voice-id", pending.id);
+      }
+    }
+
+    async function acceptVoiceCall(id, btn) {
+      if (!id) return;
+      const prev = btn ? btn.textContent : "";
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "📞 Dialing +91 91480 01667...";
+      }
+      toast("📞 Dialing +91 91480 01667...");
+      try {
+        const res = await fetch("/api/v1/voice/approve-and-call/" + id, {
+          method: "POST",
+          headers: { "X-API-KEY": "demo_dashboard_key" },
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Voice call failed");
+        toast("📞 Call placed · " + (data.message || "VOICE_CALL_DISPATCHED"));
+        await refresh();
+      } catch (err) {
+        toast(String(err.message || err));
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = prev;
+        }
+      }
+    }
+
+    async function declineVoiceCall(id) {
+      if (!id) return;
+      try {
+        const res = await fetch("/api/v1/voice/decline/" + id, {
+          method: "POST",
+          headers: { "X-API-KEY": "demo_dashboard_key" },
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Decline failed");
+        toast("Voice call declined — no dial placed");
+        await refresh();
+      } catch (err) {
+        toast(String(err.message || err));
+      }
     }
 
     function escapeHtml(s) {
@@ -514,26 +596,14 @@
       const inspect = e.target.closest("[data-inspect]");
       const approve = e.target.closest("[data-approve]");
       const voiceCall = e.target.closest("[data-voice-call]");
+      const voiceDecline = e.target.closest("[data-voice-decline]");
       if (inspect) openAudit(inspect.getAttribute("data-inspect"));
       if (voiceCall) {
-        voiceCall.disabled = true;
-        const prev = voiceCall.textContent;
-        voiceCall.textContent = "📞 Dialing +91 91480 01667...";
-        toast("📞 Dialing +91 91480 01667...");
-        try {
-          const res = await fetch("/api/v1/voice/approve-and-call/" + voiceCall.getAttribute("data-voice-call"), {
-            method: "POST",
-            headers: { "X-API-KEY": "demo_dashboard_key" },
-          });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.detail || "Voice call failed");
-          toast("📞 Call placed · " + (data.message || "VOICE_CALL_DISPATCHED"));
-          await refresh();
-        } catch (err) {
-          toast(String(err.message || err));
-          voiceCall.disabled = false;
-          voiceCall.textContent = prev;
-        }
+        acceptVoiceCall(voiceCall.getAttribute("data-voice-call"), voiceCall);
+        return;
+      }
+      if (voiceDecline) {
+        declineVoiceCall(voiceDecline.getAttribute("data-voice-decline"));
         return;
       }
       if (approve) {
@@ -548,6 +618,14 @@
           toast(String(err.message || err));
         }
       }
+    });
+
+    $("voiceAcceptBtn").addEventListener("click", () => {
+      const btn = $("voiceAcceptBtn");
+      acceptVoiceCall(btn.getAttribute("data-voice-id"), btn);
+    });
+    $("voiceDeclineBtn").addEventListener("click", () => {
+      declineVoiceCall($("voiceDeclineBtn").getAttribute("data-voice-id"));
     });
 
     function syncThemeToggle() {

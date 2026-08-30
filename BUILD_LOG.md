@@ -104,6 +104,13 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 
 ---
 
+### [Entry #18] Merchant permission gate for AI voice call
+- **Status**: 🟢 COMPLETE
+- **Component**: `backend/main.py` + `frontend/index.html`
+- **What happened**: Simulator now emits exactly one > ₹20,000 transaction per 20-payment batch (`REQUIRES_VOICE_CALL_PERMISSION`). Remaining 19 stay under ₹19,000. Twilio is not dialed until the merchant clicks Accept. Decline sets `VOICE_CALL_DECLINED` with no call.
+
+---
+
 ### [Entry #17] Twilio Voice live call for > ₹20,000
 - **Status**: 🟢 COMPLETE
 - **Component**: `backend/main.py` + `frontend/index.html`
