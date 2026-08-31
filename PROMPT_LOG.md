@@ -390,3 +390,18 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `frontend/index.html` — no hardcoded personal mobile
   - `PROMPT_LOG.md`, `BUILD_LOG.md` — redacted personal numbers
 - **Actions Executed**: Confirmed `.env` is not in git history (never tracked). Removed hardcoded live phone numbers from source and logs. Live Green API/Twilio tokens were not in git; they remain local-only. Rotate those tokens anyway if this chat or a leaked copy of `.env` was shared.
+
+---
+
+### [Prompt #36] - Workspace secrets file + HTTP PUBLIC_BASE_URL tunnel skip
+- **Timestamp**: 2026-08-31 / Secret hygiene + tunnel
+- **Exact User Prompt**: "Verify these issues exist and fix them: Bug 1: The `.env` file contains real production credentials ... storing plaintext secrets in the workspace is a security risk. Real secrets should never be stored in files at all—use environment variable management systems or secure vaults instead. The `.env.example` file should contain only placeholders. Bug 2: The `ensure_public_tunnel()` function only returns early if `PUBLIC_BASE_URL` starts with https://, but it should also respect HTTP URLs."
+- **Files Created / Modified**:
+  - `.env` (local, gitignored) — stripped to a pointer; no live tokens
+  - `.env.example` — placeholders only; do not store live keys in files
+  - `backend/env.py` — loads `.env.example` with `override=False`; never loads `.env`
+  - `backend/database.py`, `backend/agent.py`, `backend/razorpay_client.py` — stop `load_dotenv()` of `.env`
+  - `backend/tunnel.py` — `is_configured_public_base()` accepts public http and https
+  - `tests/test_tunnel.py`
+  - `PROMPT_LOG.md`, `BUILD_LOG.md`
+- **Actions Executed**: App no longer reads `.env`. Live Green API/Twilio values must come from the OS/vault. HTTP `PUBLIC_BASE_URL=http://example.com` skips localtunnel. Pytest, commit, push.

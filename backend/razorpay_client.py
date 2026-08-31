@@ -10,12 +10,7 @@ import hmac
 import os
 from decimal import Decimal
 
-try:
-    from dotenv import load_dotenv
-
-    load_dotenv()
-except ImportError:
-    pass
+import backend.env  # noqa: F401 — process env + .env.example placeholders only
 
 PLACEHOLDER_MARKERS = ("sk-proj-...", "test_secret_...", "rzp_test_...", "changeme", "xxx")
 

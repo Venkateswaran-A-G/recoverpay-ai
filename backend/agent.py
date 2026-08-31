@@ -24,13 +24,7 @@ from backend.schemas import (
     LanguageRegister,
     RecoveryCopyRequest,
 )
-
-try:
-    from dotenv import load_dotenv
-
-    load_dotenv()
-except ImportError:
-    pass
+import backend.env  # noqa: F401 — process env + .env.example placeholders only
 
 OPENAI_MODEL = "gpt-4o-mini"
 PLACEHOLDER_KEY_MARKERS = ("sk-proj-...", "your-key", "changeme", "xxx")

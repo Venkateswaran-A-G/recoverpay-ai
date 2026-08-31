@@ -1,21 +1,44 @@
-"""Best-effort public HTTPS origin so a WhatsApp tap can reach RecoverPay."""
+"""Best-effort public origin so a WhatsApp tap can reach RecoverPay."""
 
 from __future__ import annotations
 
+import ipaddress
 import os
 import re
 import subprocess
 import sys
 import threading
 from pathlib import Path
+from urllib.parse import urlparse
 
 TUNNEL_FILE = Path(__file__).resolve().parent.parent / ".tunnel-url"
 _started = False
 _lock = threading.Lock()
+_LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1"}
 
 
 def _test_mode() -> bool:
     return os.getenv("TEST_MODE", "").strip().lower() in {"1", "true", "yes"}
+
+
+def is_configured_public_base(url: str) -> bool:
+    """True when PUBLIC_BASE_URL is a public http(s) origin (not loopback/LAN)."""
+    raw = (url or "").strip()
+    if not raw:
+        return False
+    parsed = urlparse(raw)
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme not in {"http", "https"} or not host:
+        return False
+    if host in _LOOPBACK_HOSTS or host.endswith(".local"):
+        return False
+    try:
+        ip = ipaddress.ip_address(host)
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+            return False
+    except ValueError:
+        pass
+    return True
 
 
 def read_tunnel_base() -> str | None:
@@ -45,7 +68,7 @@ def ensure_public_tunnel(port: int = 8000) -> None:
     if _test_mode():
         return
     env = os.getenv("PUBLIC_BASE_URL", "").strip()
-    if env.startswith("https://") and "localhost" not in env and "127.0.0.1" not in env:
+    if is_configured_public_base(env):
         return
     with _lock:
         if _started:

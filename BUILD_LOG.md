@@ -104,6 +104,14 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 
 ---
 
+### [Entry #29] Plaintext workspace secrets + HTTP PUBLIC_BASE_URL ignored
+- **Status**: 🟢 RESOLVED
+- **Component**: `backend/env.py`, `backend/tunnel.py`
+- **What happened**: Local `.env` held live Green API/Twilio credentials. `ensure_public_tunnel()` only skipped when `PUBLIC_BASE_URL` started with `https://`, so `http://example.com` still spawned localtunnel.
+- **Fix / Action Taken**: Stopped loading `.env`. Placeholder defaults come from `.env.example` (`override=False`). Workspace `.env` is a comment-only pointer. Public HTTP and HTTPS origins both skip the tunnel.
+
+---
+
 ### [Entry #28] Secret hygiene: .env not in git; PII removed from tracked files
 - **Status**: 🟢 RESOLVED
 - **Component**: `.gitignore`, `backend/main.py`, logs

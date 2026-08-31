@@ -13,13 +13,7 @@ from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
 
 from backend.models import AuditLog, Base, OptOutRegistry, Transaction
-
-try:
-    from dotenv import load_dotenv
-
-    load_dotenv()
-except ImportError:
-    pass
+import backend.env  # noqa: F401 — process env + .env.example placeholders only
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./recoverpay.db")
 
