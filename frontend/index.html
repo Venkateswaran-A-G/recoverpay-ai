@@ -500,7 +500,7 @@
           <div><span class="inline-block rounded-full px-2 py-1 text-[10px] font-semibold ${PILL[txn.recovery_status] || PILL.PENDING}">${prettyStatus(txn.recovery_status)}</span></div>
           <div class="flex flex-wrap gap-1.5 justify-end">
             ${flagged && !voiceHigh ? `<button class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-amber-800 dark:text-amber-300 bg-amber-500/15 border border-amber-500/40" data-approve="${txn.id}">🚨 Approve &amp; Send (&gt;₹5K)</button>` : ""}
-            ${dispatched ? `<a class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-emerald-800 dark:text-emerald-200 bg-emerald-500/15 border border-emerald-500/40" href="/api/v1/recovery/pay/${txn.id}" target="_blank" rel="noopener">Confirm payment</a>` : ""}
+            ${dispatched ? `<a class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-emerald-800 dark:text-emerald-200 bg-emerald-500/15 border border-emerald-500/40" href="/pay/${txn.id}" target="_blank" rel="noopener">Confirm payment</a>` : ""}
             <button class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold bg-white/80 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800/80" data-inspect="${txn.id}">Inspect Audit</button>
           </div>`;
         stream.appendChild(row);
@@ -932,7 +932,7 @@
     setInterval(() => {
       loadTransactions().catch(() => {});
       loadMetrics().catch(() => {});
-    }, 8000);
+    }, 3000);
   </script>
 </body>
 </html>

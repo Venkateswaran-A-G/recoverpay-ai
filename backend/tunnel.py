@@ -12,6 +12,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 TUNNEL_FILE = Path(__file__).resolve().parent.parent / ".tunnel-url"
+CLOUDFLARED = Path(__file__).resolve().parent.parent / "tools" / "cloudflared.exe"
 _started = False
 _lock = threading.Lock()
 _LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1"}
@@ -74,12 +75,56 @@ def ensure_public_tunnel(port: int = 8000) -> None:
         if _started:
             return
         cached = read_tunnel_base()
-        if cached and probe_tunnel(cached):
+        cloudflare_ok = bool(cached and "trycloudflare.com" in cached and probe_tunnel(cached))
+        loca_ok = bool(cached and "loca.lt" in cached and not CLOUDFLARED.is_file() and probe_tunnel(cached))
+        if cloudflare_ok or loca_ok:
             _started = True
             print(f"[tunnel] reusing {cached}", file=sys.stderr)
             return
         _started = True
-    threading.Thread(target=_spawn_localtunnel, args=(port,), daemon=True).start()
+    threading.Thread(target=_spawn_public_tunnel, args=(port,), daemon=True).start()
+
+
+def _write_tunnel_url(url: str) -> None:
+    TUNNEL_FILE.write_text(url.rstrip("/") + "\n", encoding="utf-8")
+    print(f"[tunnel] public origin {url}", file=sys.stderr)
+
+
+def _spawn_public_tunnel(port: int) -> None:
+    if CLOUDFLARED.is_file() and _spawn_cloudflared(port):
+        return
+    _spawn_localtunnel(port)
+
+
+def _spawn_cloudflared(port: int) -> bool:
+    cmd = [
+        str(CLOUDFLARED),
+        "tunnel",
+        "--url",
+        f"http://127.0.0.1:{int(port)}",
+        "--no-autoupdate",
+    ]
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except Exception as exc:
+        print(f"[tunnel] cloudflared failed to start: {exc}", file=sys.stderr)
+        return False
+    if proc.stdout is None:
+        return False
+    for line in proc.stdout:
+        match = re.search(r"https://[a-z0-9-]+\.trycloudflare\.com", line, re.I)
+        if match:
+            _write_tunnel_url(match.group(0))
+            return True
+    print("[tunnel] cloudflared exited without a public URL", file=sys.stderr)
+    return False
 
 
 def _spawn_localtunnel(port: int) -> None:
@@ -103,6 +148,5 @@ def _spawn_localtunnel(port: int) -> None:
         match = re.search(r"https://[a-zA-Z0-9.-]+\.loca\.lt", line)
         if match:
             url = match.group(0).rstrip("/")
-            TUNNEL_FILE.write_text(url + "\n", encoding="utf-8")
-            print(f"[tunnel] public origin {url}", file=sys.stderr)
+            _write_tunnel_url(url)
             return

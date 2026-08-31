@@ -431,3 +431,16 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `.env` (local, gitignored) — live Green API keys restored; not committed
   - `PROMPT_LOG.md`, `BUILD_LOG.md`
 - **Actions Executed**: After the vault-only change, Green API had no live token so sends were skipped. Reloaded local `.env`. Test send returned Green API `idMessage` success.
+
+---
+
+### [Prompt #39] - WhatsApp pay link + click marks RECOVERED
+- **Timestamp**: 2026-08-31 / RecoverPay click URL
+- **Exact User Prompt**: "can you check the whatsapp link i think it is not correct and also if i click the link in the whatsapp then the Status in the webpage should be recovered from recovery dispatched"
+- **Files Created / Modified**:
+  - `backend/main.py` — short `/pay/{id}` URL, wait for public tunnel, live sim leaves DISPATCHED until tap
+  - `backend/tunnel.py` — prefer Cloudflare trycloudflare (no loca.lt warning page)
+  - `frontend/index.html` — Confirm payment uses `/pay/{id}`, refresh every 3s
+  - `tests/test_main.py`, `.gitignore`
+  - `PROMPT_LOG.md`, `BUILD_LOG.md`
+- **Actions Executed**: WhatsApp now gets `https://…/pay/{uuid}` on RecoverPay. Opening it sets RECOVERED. Live batches no longer auto-recover so the tap can change the pill.

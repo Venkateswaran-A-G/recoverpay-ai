@@ -104,6 +104,14 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 
 ---
 
+### [Entry #32] WhatsApp link did not mark RECOVERED
+- **Status**: 🟢 RESOLVED
+- **Component**: `backend/main.py`, `backend/tunnel.py`
+- **What happened**: Bubbles used `href.li`/`127.0.0.1` or loca.lt warning pages, so RecoverPay often never saw the tap. The live simulator also auto-marked ~72% RECOVERED before the customer clicked, so the dashboard did not appear to change.
+- **Fix / Action Taken**: Short public `/pay/{id}` URL via Cloudflare tunnel. GET marks DISPATCHED → RECOVERED. Live simulator leaves those rows dispatched until the link is opened. Dashboard refreshes every 3s.
+
+---
+
 ### [Entry #31] WhatsApp sends skipped after .env unload
 - **Status**: 🟢 RESOLVED
 - **Component**: `backend/env.py`, Green API

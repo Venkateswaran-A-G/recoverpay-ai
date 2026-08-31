@@ -40,3 +40,6 @@ out/
 Thumbs.db
 .idea/
 .vscode/
+
+# Local tunnel binaries
+tools/

@@ -471,20 +471,29 @@ def public_app_base() -> str:
 
 def recovery_pay_url(txn_id: str) -> str:
     """Customer-facing WhatsApp link that records a click as payment evidence."""
-    return f"{public_app_base()}/api/v1/recovery/pay/{txn_id}"
+    return f"{public_app_base()}/pay/{txn_id}"
 
 
 def whatsapp_payment_link(txn_id: str, rzp_link: str | None = None) -> str:
-    """Always land on RecoverPay so a tap marks RECOVERED.
+    """Always land on RecoverPay ``/pay/{id}`` so a tap marks RECOVERED.
 
-    WhatsApp only hyperlinks public https hosts. Local RecoverPay URLs are
-    wrapped with href.li so the bubble is clickable but the browser still
-    opens ``/api/v1/recovery/pay/{id}``. Razorpay ``rzp.io`` links are never
-    used as the WhatsApp target — they cannot update RecoverPay status.
+    WhatsApp only hyperlinks public http(s) hosts. Live demo waits once for
+    the Cloudflare/loca.lt tunnel so the bubble is a real RecoverPay URL, not
+    ``href.li`` or ``rzp.io``.
     """
     recover = recovery_pay_url(txn_id)
     if is_whatsapp_linkifiable(recover):
         return recover
+    if not is_test_mode():
+        deadline = time.time() + 10
+        while time.time() < deadline:
+            recover = recovery_pay_url(txn_id)
+            if is_whatsapp_linkifiable(recover):
+                return recover
+            time.sleep(0.5)
+        recover = recovery_pay_url(txn_id)
+        if is_whatsapp_linkifiable(recover):
+            return recover
     return f"https://href.li/?{recover}"
 
 
@@ -910,12 +919,8 @@ async def razorpay_paid_webhook(request: Request, db: Session = Depends(get_db))
     )
 
 
-@app.get("/api/v1/recovery/pay/{transaction_id}", include_in_schema=True)
-def recovery_payment_link_click(
-    transaction_id: str,
-    db: Session = Depends(get_db),
-) -> HTMLResponse:
-    """WhatsApp 1-click payment link — records evidence and marks RECOVERED."""
+def _complete_whatsapp_payment_click(transaction_id: str, db: Session) -> HTMLResponse:
+    """Mark RECOVERY_DISPATCHED → RECOVERED when the customer opens the pay URL."""
     txn = db.get(Transaction, transaction_id)
     if txn is None:
         raise HTTPException(status_code=404, detail="Transaction not found")
@@ -937,6 +942,24 @@ def recovery_payment_link_click(
         "<div style='text-align:center'><p style='font-size:22px'>Payment confirmed</p>"
         "<p style='color:#94a3b8'>RecoverPay AI marked this order RECOVERED.</p></div></body></html>"
     )
+
+
+@app.get("/pay/{transaction_id}", include_in_schema=True)
+def recovery_payment_short_link(
+    transaction_id: str,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    """Short WhatsApp pay URL — same evidence as ``/api/v1/recovery/pay/{id}``."""
+    return _complete_whatsapp_payment_click(transaction_id, db)
+
+
+@app.get("/api/v1/recovery/pay/{transaction_id}", include_in_schema=True)
+def recovery_payment_link_click(
+    transaction_id: str,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    """WhatsApp 1-click payment link — records evidence and marks RECOVERED."""
+    return _complete_whatsapp_payment_click(transaction_id, db)
 
 
 @app.get("/api/v1/dashboard/metrics", response_model=DashboardMetrics)
@@ -1293,7 +1316,7 @@ def run_batch_simulator(
             if Decimal(txn.amount) < FINANCIAL_THRESHOLD_INR:
                 small_dispatched.append(txn)
 
-    if simulate_recoveries and small_dispatched:
+    if simulate_recoveries and small_dispatched and is_test_mode():
         recover_n = int(round(len(small_dispatched) * 0.72))
         recover_n = min(len(small_dispatched), max(0, recover_n))
         for txn in small_dispatched[:recover_n]:

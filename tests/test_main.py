@@ -365,8 +365,10 @@ def test_whatsapp_payment_link_click_marks_recovered(client):
     )
     txn_id = ingest.json()["transaction_id"]
     assert ingest.json()["recovery_status"] == RecoveryStatus.RECOVERY_DISPATCHED.value
-    clicked = test_client.get(f"/api/v1/recovery/pay/{txn_id}")
+    clicked = test_client.get(f"/pay/{txn_id}")
     assert clicked.status_code == 200
+    already = test_client.get(f"/api/v1/recovery/pay/{txn_id}")
+    assert already.status_code == 200
     detail = test_client.get(f"/api/v1/audit-logs/{txn_id}", headers={"X-API-KEY": "demo_dashboard_key"})
     assert detail.json()["transaction"]["recovery_status"] == RecoveryStatus.RECOVERED.value
     steps = {row["step_name"] for row in detail.json()["audit_logs"]}
@@ -459,7 +461,7 @@ def test_whatsapp_payment_link_never_uses_localhost(monkeypatch):
     assert link.startswith("https://")
     assert "rzp.io" not in link
     assert txn_id in link
-    assert "recovery/pay" in link
+    assert f"/pay/{txn_id}" in link
     from backend.agent import is_whatsapp_linkifiable
 
     assert is_whatsapp_linkifiable(link) is True
@@ -469,5 +471,5 @@ def test_whatsapp_payment_link_uses_public_recover_url(monkeypatch):
     monkeypatch.setenv("PUBLIC_BASE_URL", "https://demo.recoverpay.test")
     txn_id = "a5ece3b6-1f02-4200-baf9-0c1b9310c831"
     link = whatsapp_payment_link(txn_id, "https://rzp.io/l/should-not-win")
-    assert link == f"https://demo.recoverpay.test/api/v1/recovery/pay/{txn_id}"
+    assert link == f"https://demo.recoverpay.test/pay/{txn_id}"
 
