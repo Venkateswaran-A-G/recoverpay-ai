@@ -3,9 +3,10 @@
 venv/
 env/
 
-# Environment secrets
+# Environment secrets — never commit real keys
 .env
-.env.local
+.env.*
+!.env.example
 .tunnel-url
 
 # Python

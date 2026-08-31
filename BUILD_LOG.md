@@ -104,6 +104,14 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 
 ---
 
+### [Entry #28] Secret hygiene: .env not in git; PII removed from tracked files
+- **Status**: 🟢 RESOLVED
+- **Component**: `.gitignore`, `backend/main.py`, logs
+- **What happened**: Bug report claimed `.env` with Green API/Twilio secrets was committed. `git rev-list --all -- .env` is empty; only `.env.example` exists in history. Real exposure was a personal mobile and Twilio caller IDs hardcoded in `backend/main.py`, the dashboard toast, and journal markdown.
+- **Fix / Action Taken**: Dial numbers now come from env vars. Audit payloads use `mask_phone`. Journals redacted. `.gitignore` ignores `.env.*` except `.env.example`. Tokens in local `.env` were never in git; rotate them if the file was shared.
+
+---
+
 ### [Entry #27] Local SQLite metrics reset
 - **Status**: 🟢 COMPLETE
 - **Component**: `recoverpay.db`
@@ -179,7 +187,7 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 ### [Entry #17] Twilio Voice live call for > ₹20,000
 - **Status**: 🟢 COMPLETE
 - **Component**: `backend/main.py` + `frontend/index.html`
-- **What happened**: Merchant-approved Twilio Voice call to `+919148001667` from `+17372212163` with Polly.Aditi TwiML. Status `VOICE_CALL_DISPATCHED`, audit `REAL_PHONE_VOICE_CALL_PLACED`. Simulator emits ₹25,000 failures. `TEST_MODE=true` returns `CA_TEST_MODE_SKIPPED` so pytest does not place live calls.
+- **What happened**: Merchant-approved Twilio Voice call to `+91 91*****1667` from `+1XXXXXXXXXX` with Polly.Aditi TwiML. Status `VOICE_CALL_DISPATCHED`, audit `REAL_PHONE_VOICE_CALL_PLACED`. Simulator emits ₹25,000 failures. `TEST_MODE=true` returns `CA_TEST_MODE_SKIPPED` so pytest does not place live calls.
 - **Trial-account note**: Twilio trial rejects inline `twiml=` (`Invalid or disallowed parameters`). Fallback uses the same TwiML via `https://twimlets.com/echo?Twiml=...` so the live call still connects.
 
 ---
@@ -203,6 +211,6 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 ### [Entry #14] Twilio WhatsApp Sandbox integration (added then removed)
 - **Status**: 🟡 REVERTED
 - **Component**: `backend/agent.py` + `backend/main.py`
-- **What happened**: Twilio integrated and working — messages delivered to `+919148001667`. ContentSid template workaround required due to Twilio trial account restrictions. Subsequently, Whapi Cloud and CallMeBot were explored as alternatives. All messaging code removed at user request.
+- **What happened**: Twilio integrated and working — messages delivered to `+91 91*****1667`. ContentSid template workaround required due to Twilio trial account restrictions. Subsequently, Whapi Cloud and CallMeBot were explored as alternatives. All messaging code removed at user request.
 - **Current state**: `send_live_whatsapp_message()` does NOT exist in `backend/agent.py`. No Twilio or third-party messaging vars in `.env`. The dispatch pipeline commits DB and returns without any external messaging call.
 - **Verified**: `pytest` → 30 passed. `.env` and `.env.example` contain only the 7 original core keys.

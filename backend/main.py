@@ -1105,20 +1105,27 @@ def _place_twilio_voice_call() -> str:
     from urllib.parse import quote
 
     twiml_url = "https://twimlets.com/echo?Twiml=" + quote(twiml)
+    to_number = os.getenv("MY_PERSONAL_WHATSAPP", "").strip()
+    from_number = os.getenv("TWILIO_PHONE_NUMBER", "").strip()
+    if not to_number or not from_number:
+        raise HTTPException(
+            status_code=503,
+            detail="MY_PERSONAL_WHATSAPP and TWILIO_PHONE_NUMBER must be set in the environment",
+        )
     try:
         from twilio.rest import Client as TwilioClient  # type: ignore[import-untyped]
 
         client = TwilioClient(account_sid, auth_token)
         try:
             call = client.calls.create(
-                to="+919148001667",
-                from_="+17372212163",
+                to=to_number,
+                from_=from_number,
                 twiml=twiml,
             )
         except Exception:
             call = client.calls.create(
-                to="+919148001667",
-                from_="+17372212163",
+                to=to_number,
+                from_=from_number,
                 url=twiml_url,
             )
         return str(call.sid)
@@ -1162,8 +1169,8 @@ def approve_and_place_voice_call(
         raw_payload={
             "channel": "twilio_voice",
             "call_sid": call_sid,
-            "to": os.getenv("MY_PERSONAL_WHATSAPP"),
-            "from": os.getenv("TWILIO_PHONE_NUMBER"),
+            "to": mask_phone(os.getenv("MY_PERSONAL_WHATSAPP") or ""),
+            "from": mask_phone(os.getenv("TWILIO_PHONE_NUMBER") or ""),
         },
     )
     txn.recovery_status = RecoveryStatus.RECOVERED.value

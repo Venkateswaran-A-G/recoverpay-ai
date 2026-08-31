@@ -192,10 +192,10 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
 - **Files Created / Modified**:
   - `backend/agent.py` (added `send_green_api_message()` — POST to `api.green-api.com/waInstance{ID}/sendMessage/{TOKEN}`)
   - `backend/main.py` (imported `send_green_api_message`; called after DB commit in `dispatch_recovery()`)
-  - `.env` (added `GREEN_API_INSTANCE_ID`, `GREEN_API_TOKEN`, `MY_PERSONAL_WHATSAPP=919148001667`, `TEST_MODE=false`)
+  - `.env` (added `GREEN_API_INSTANCE_ID`, `GREEN_API_TOKEN`, `MY_PERSONAL_WHATSAPP=91*****1667`, `TEST_MODE=false`)
   - `.env.example` (added Green API vars)
   - `PROMPT_LOG.md`
-- **Actions Executed**: Live test → `idMessage=3EB0DBF1A8BC033F9A25CC` delivered to `919148001667@c.us`. Fixed phone number format (needs 91 country code prefix). `pytest` → 30 passed. Committed and pushed.
+- **Actions Executed**: Live test → `idMessage=3EB0DBF1A8BC033F9A25CC` delivered to `91*****1667@c.us`. Fixed phone number format (needs 91 country code prefix). `pytest` → 30 passed. Committed and pushed.
 
 ---
 
@@ -247,7 +247,7 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
 
 ### [Prompt #24] - Twilio Voice API for live real phone call recovery
 - **Timestamp**: 2026-08-30 / Twilio Voice
-- **Exact User Prompt**: "Hello! Read @AGENTS.md, @backend/guardrails.py, @backend/main.py, and @frontend/index.html first. 1. Please update .env in the root folder with these exact Twilio credentials: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER=+17372212163, MY_PERSONAL_WHATSAPP=+919148001667. 2. Implement Real Phone Calling in backend/main.py for transactions > ₹20,000: POST /api/v1/voice/approve-and-call/{transaction_id}, Twilio Client.calls.create to=+919148001667 from_=+17372212163 with Polly.Aditi TwiML. Status VOICE_CALL_DISPATCHED, audit REAL_PHONE_VOICE_CALL_PLACED. 3. Update Dashboard UI: urgent banner, Approve & Dial Real Mobile Phone button, Dialing +91 91480 01667... status. Test at http://localhost:8000. Log this prompt in PROMPT_LOG.md and git commit with message 'feat: integrate Twilio Voice API for live real phone call recovery' and push to main."
+- **Exact User Prompt**: "Hello! Read @AGENTS.md, @backend/guardrails.py, @backend/main.py, and @frontend/index.html first. 1. Please update .env in the root folder with these exact Twilio credentials: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER=+1XXXXXXXXXX, MY_PERSONAL_WHATSAPP=+91*****1667. 2. Implement Real Phone Calling in backend/main.py for transactions > ₹20,000: POST /api/v1/voice/approve-and-call/{transaction_id}, Twilio Client.calls.create to=+91*****1667 from_=+1XXXXXXXXXX with Polly.Aditi TwiML. Status VOICE_CALL_DISPATCHED, audit REAL_PHONE_VOICE_CALL_PLACED. 3. Update Dashboard UI: urgent banner, Approve & Dial Real Mobile Phone button, Dialing +91 91*****1667... status. Test at http://localhost:8000. Log this prompt in PROMPT_LOG.md and git commit with message 'feat: integrate Twilio Voice API for live real phone call recovery' and push to main."
 - **Files Created / Modified**:
   - `.env` (local only, gitignored) — Twilio SID/token/from + MY_PERSONAL_WHATSAPP
   - `.env.example` — Twilio Voice placeholders
@@ -377,3 +377,16 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `recoverpay.db` (local, gitignored) — deleted 60 transactions and 219 audit logs
   - `PROMPT_LOG.md`, `BUILD_LOG.md`
 - **Actions Executed**: `DELETE` from `audit_logs` then `transactions`. `opt_out_registry` left intact. Metrics API returned ₹0.00 / 0 transactions.
+
+---
+
+### [Prompt #35] - Verify and fix committed .env secrets
+- **Timestamp**: 2026-08-31 / Secret hygiene
+- **Exact User Prompt**: "Verify these issues exist and fix them: Bug 1: The `.env` file containing production credentials (Green API token, Twilio auth, WhatsApp instance ID, personal phone number) was committed to the repository. Although `.gitignore` correctly excludes `.env` files, this file should never have been added with real secrets. These credentials are now exposed in version control history and can be used to access external services."
+- **Files Created / Modified**:
+  - `.gitignore` — ignore `.env.*` except `.env.example`
+  - `.env.example` — placeholders only; never-commit note
+  - `backend/main.py` — Twilio to/from from env; mask numbers in audit
+  - `frontend/index.html` — no hardcoded personal mobile
+  - `PROMPT_LOG.md`, `BUILD_LOG.md` — redacted personal numbers
+- **Actions Executed**: Confirmed `.env` is not in git history (never tracked). Removed hardcoded live phone numbers from source and logs. Live Green API/Twilio tokens were not in git; they remain local-only. Rotate those tokens anyway if this chat or a leaked copy of `.env` was shared.

@@ -589,9 +589,9 @@
       const prev = btn ? btn.textContent : "";
       if (btn) {
         btn.disabled = true;
-        btn.textContent = "📞 Dialing +91 91480 01667...";
+        btn.textContent = "📞 Dialing recovery number...";
       }
-      toast("📞 Dialing +91 91480 01667...");
+      toast("📞 Dialing recovery number...");
       try {
         const res = await fetch("/api/v1/voice/approve-and-call/" + id, {
           method: "POST",
