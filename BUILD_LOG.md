@@ -104,6 +104,14 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 
 ---
 
+### [Entry #31] WhatsApp sends skipped after .env unload
+- **Status**: 🟢 RESOLVED
+- **Component**: `backend/env.py`, Green API
+- **What happened**: The app stopped loading `.env`, so `GREEN_API_TOKEN` / instance ID were placeholders. `send_green_api_message` never reached Green API (or used fake creds).
+- **Fix / Action Taken**: Load gitignored `.env` first, then `.env.example`. Skip placeholder tokens. Confirmed a live send (`idMessage` accepted for the configured chat).
+
+---
+
 ### [Entry #30] Dual-script regional WhatsApp copy
 - **Status**: 🟢 COMPLETE
 - **Component**: `backend/agent.py`

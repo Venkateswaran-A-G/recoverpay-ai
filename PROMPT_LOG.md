@@ -417,3 +417,17 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `tests/test_agent.py` — dual-script assertions per region
   - `PROMPT_LOG.md`, `BUILD_LOG.md`
 - **Actions Executed**: Regional WhatsApp copy is native block then Latin block; both include cause, 💡 tip, and the exact payment link. English stays single-script. Pytest, commit, push.
+
+---
+
+### [Prompt #38] - WhatsApp messages not arriving
+- **Timestamp**: 2026-08-31 / Green API outreach
+- **Exact User Prompt**: "i am not recieving any whatsapp messages"
+- **Files Created / Modified**:
+  - `backend/env.py` — load gitignored `.env` before `.env.example` (`override=False`)
+  - `backend/agent.py` — skip placeholder Green API credentials
+  - `backend/main.py` — skip placeholder `MY_PERSONAL_WHATSAPP`
+  - `.env.example` — document local `.env` for demo keys
+  - `.env` (local, gitignored) — live Green API keys restored; not committed
+  - `PROMPT_LOG.md`, `BUILD_LOG.md`
+- **Actions Executed**: After the vault-only change, Green API had no live token so sends were skipped. Reloaded local `.env`. Test send returned Green API `idMessage` success.

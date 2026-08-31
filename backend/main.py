@@ -590,7 +590,7 @@ def dispatch_recovery(
 
     # ── Green API WhatsApp outreach (fire-and-forget) ─────────────────────────
     personal_wa = os.getenv("MY_PERSONAL_WHATSAPP", "").strip()
-    if personal_wa:
+    if personal_wa and "XXXX" not in personal_wa.upper():
         rich_msg = build_rich_whatsapp_message(
             request, diagnostic.language_register, bank_outage_note=bank_outage_note
         )

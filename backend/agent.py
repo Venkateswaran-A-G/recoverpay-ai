@@ -706,10 +706,15 @@ def send_green_api_message(
         print("[GreenAPI] TEST_MODE=true → skipping live send.", file=sys.stderr)
         return False
 
-    instance_id = os.getenv("GREEN_API_INSTANCE_ID", "").strip()
-    token = os.getenv("GREEN_API_TOKEN", "").strip()
-    if not instance_id or not token:
-        print("[GreenAPI] GREEN_API_INSTANCE_ID / GREEN_API_TOKEN not set; skipping.", file=sys.stderr)
+    instance_id = os.getenv("GREEN_API_INSTANCE_ID", "").strip().strip('"')
+    token = os.getenv("GREEN_API_TOKEN", "").strip().strip('"')
+    placeholder_markers = ("your_instance", "your_green_api", "changeme", "xxxx", "...")
+    if (
+        not instance_id
+        or not token
+        or any(marker in instance_id.lower() or marker in token.lower() for marker in placeholder_markers)
+    ):
+        print("[GreenAPI] Live credentials missing or placeholder; skipping send.", file=sys.stderr)
         return False
 
     # Normalise phone: strip whatsapp:/+/spaces, keep digits only
