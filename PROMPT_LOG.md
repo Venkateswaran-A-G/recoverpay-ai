@@ -444,3 +444,14 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `tests/test_main.py`, `.gitignore`
   - `PROMPT_LOG.md`, `BUILD_LOG.md`
 - **Actions Executed**: WhatsApp now gets `https://…/pay/{uuid}` on RecoverPay. Opening it sets RECOVERED. Live batches no longer auto-recover so the tap can change the pill.
+
+---
+
+### [Prompt #40] - 1-click startup scripts
+- **Timestamp**: 2026-08-31 / Local launch
+- **Exact User Prompt**: "Please create 1-Click Startup Execution Files: 1. Create run.bat (Windows Batch Script): Title: Starting RecoverPay AI Engine... Start FastAPI backend server in background: start \"\" /b python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload Wait 2 seconds. Automatically open default web browser: start http://localhost:8000 Display clean startup banner and instructions. 2. Create run.sh (Mac/Linux Executable Shell Script). Log this change in PROMPT_LOG.md and git commit with message 'feat: add 1-click run.bat startup script to launch server and open browser automatically' and push to main."
+- **Files Created / Modified**:
+  - `run.bat` — Windows 1-click uvicorn + browser
+  - `run.sh` — macOS/Linux equivalent
+  - `PROMPT_LOG.md`
+- **Actions Executed**: Scripts cd to the repo root, prefer `.venv` Python when present, start `uvicorn backend.main:app` on `0.0.0.0:8000 --reload`, wait 2s, open http://localhost:8000. Committed and pushed.
