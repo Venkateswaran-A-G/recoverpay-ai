@@ -455,3 +455,13 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `run.sh` — macOS/Linux equivalent
   - `PROMPT_LOG.md`
 - **Actions Executed**: Scripts cd to the repo root, prefer `.venv` Python when present, start `uvicorn backend.main:app` on `0.0.0.0:8000 --reload`, wait 2s, open http://localhost:8000. Committed and pushed.
+
+---
+
+### [Prompt #41] - A-to-Z interview master document
+- **Timestamp**: 2026-08-31 / Interview prep
+- **Exact User Prompt**: "give me a doc telling me about the project completely in simple words but in engineering term if some one ask about the project i should be able to answer every question they throw and this should help me crack the interveiw panel so i want to know Ato Z about the project"
+- **Files Created / Modified**:
+  - `INTERVIEW_ATOZ.md` — complete panel guide (pitch, stack, architecture, state machine, guardrails, LLM, WhatsApp/voice, metrics, APIs, security, demo script, Q&A)
+  - `PROMPT_LOG.md`
+- **Actions Executed**: Wrote an interview A-to-Z based on shipped code (FastAPI + `frontend/index.html`, Green API, `/pay/{id}`, dual-script WhatsApp, ₹5k / ₹20k gates). Documented honest spec vs reality (no Next.js). Committed and pushed.
