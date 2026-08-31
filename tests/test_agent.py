@@ -5,6 +5,7 @@ from decimal import Decimal
 from backend.agent import (
     build_rich_whatsapp_message,
     classify_failure_code,
+    contains_native_script,
     diagnose_failure,
     fallback_diagnostic,
     is_whatsapp_linkifiable,
@@ -64,6 +65,10 @@ def test_fallback_templates_preserve_link_for_every_region():
         assert out.language_register == register
         assert message_preserves_payment_link(out.hinglish_message, LINK)
         assert out.contains_payment_link is True
+        assert contains_native_script(out.hinglish_message, register)
+        if register != LanguageRegister.ENGLISH:
+            assert out.hinglish_message.count(LINK) >= 2
+            assert "💡" in out.hinglish_message
 
 
 def test_diagnose_failure_uses_fallback_when_key_missing_or_test_mode(monkeypatch):
@@ -92,6 +97,7 @@ def test_valid_llm_json_is_accepted_and_keeps_link():
     assert out.failure_category == "TEMPORARY_OUTAGE"
     assert LINK in out.hinglish_message
     assert out.language_register == LanguageRegister.KANNADA_ENGLISH
+    assert contains_native_script(out.hinglish_message, LanguageRegister.KANNADA_ENGLISH)
 
 
 def test_llm_hallucinated_link_triggers_fallback():
@@ -152,3 +158,31 @@ def test_rich_message_puts_https_link_on_own_line():
     msg = build_rich_whatsapp_message(_request(), LanguageRegister.HINGLISH)
     assert f"\n{LINK}" in msg
     assert "1-Click Payment Link: http://" not in msg
+
+
+def test_rich_message_is_dual_script_for_every_region():
+    regional = {
+        LanguageRegister.KANNADA_ENGLISH: "ನಮಸ್ಕಾರ",
+        LanguageRegister.TANGLISH: "வணக்கம்",
+        LanguageRegister.TELUGU_ENGLISH: "నమస్కారం",
+        LanguageRegister.MARATHI_HINGLISH: "नमस्कार",
+        LanguageRegister.HINGLISH: "नमस्ते",
+    }
+    for register, native_hello in regional.items():
+        msg = build_rich_whatsapp_message(_request(), register)
+        assert native_hello in msg
+        assert contains_native_script(msg, register)
+        assert msg.count(LINK) == 2
+        assert "💡" in msg
+        latin_hello = {
+            LanguageRegister.KANNADA_ENGLISH: "Namaskara",
+            LanguageRegister.TANGLISH: "Vanakkam",
+            LanguageRegister.TELUGU_ENGLISH: "Namaskaram",
+            LanguageRegister.MARATHI_HINGLISH: "Namaskar",
+            LanguageRegister.HINGLISH: "Namaste",
+        }[register]
+        assert latin_hello in msg
+    english = build_rich_whatsapp_message(_request(), LanguageRegister.ENGLISH)
+    assert contains_native_script(english, LanguageRegister.ENGLISH)
+    assert english.count(LINK) == 1
+    assert "Hello" in english

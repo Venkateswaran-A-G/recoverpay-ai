@@ -62,26 +62,36 @@ _STATE_ALIASES: dict[str, LanguageRegister] = {
 
 _LOCALE_STYLE: dict[LanguageRegister, str] = {
     LanguageRegister.KANNADA_ENGLISH: (
-        "Conversational Kannada-English mix in Latin script "
-        "(e.g. 'Nimma payment timeout aaytu, complete maadi')."
+        "DUAL SCRIPT. Block 1: Kannada native script (ಕನ್ನಡ). "
+        "Block 2: Kanglish / Kannada-English in Latin script. "
+        "Both blocks must include the same plain failure cause, a 💡 tip, "
+        "and the exact payment_link on its own line."
     ),
     LanguageRegister.TANGLISH: (
-        "Tanglish / Tamil-English mix in Latin script "
-        "(e.g. 'Unoda payment timeout aagiduchu, complete pannunga')."
+        "DUAL SCRIPT. Block 1: Tamil native script (தமிழ்). "
+        "Block 2: Tanglish in Latin script. "
+        "Both blocks must include the same plain failure cause, a 💡 tip, "
+        "and the exact payment_link on its own line."
     ),
     LanguageRegister.TELUGU_ENGLISH: (
-        "Telugu-English mix in Latin script "
-        "(e.g. 'Mee payment timeout ayyindi, complete cheyyandi')."
+        "DUAL SCRIPT. Block 1: Telugu native script (తెలుగు). "
+        "Block 2: Telugu-English in Latin script. "
+        "Both blocks must include the same plain failure cause, a 💡 tip, "
+        "and the exact payment_link on its own line."
     ),
     LanguageRegister.MARATHI_HINGLISH: (
-        "Marathi-Hinglish mix in Latin script "
-        "(e.g. 'Tumcha payment timeout zala, complete kara')."
+        "DUAL SCRIPT. Block 1: Marathi native script (मराठी). "
+        "Block 2: Marathi-Hinglish in Latin script. "
+        "Both blocks must include the same plain failure cause, a 💡 tip, "
+        "and the exact payment_link on its own line."
     ),
     LanguageRegister.HINGLISH: (
-        "North-Indian Hinglish "
-        "(e.g. 'Aapka payment timeout ho gaya, yahan complete karein')."
+        "DUAL SCRIPT. Block 1: Hindi native script (हिंदी). "
+        "Block 2: Hinglish in Latin script. "
+        "Both blocks must include the same plain failure cause, a 💡 tip, "
+        "and the exact payment_link on its own line."
     ),
-    LanguageRegister.ENGLISH: "Simple, polite Indian English. No slang.",
+    LanguageRegister.ENGLISH: "Simple, polite Indian English only. No slang. No second script.",
 }
 
 # ── Dialect-aware greeting and possessive ─────────────────────────────────────
@@ -101,6 +111,62 @@ _POSSESSIVES: dict[LanguageRegister, str] = {
     LanguageRegister.MARATHI_HINGLISH: "Tumcha",
     LanguageRegister.HINGLISH: "Aapka",
     LanguageRegister.ENGLISH: "Your",
+}
+
+_NATIVE_GREETINGS: dict[LanguageRegister, str] = {
+    LanguageRegister.KANNADA_ENGLISH: "ನಮಸ್ಕಾರ",
+    LanguageRegister.TANGLISH: "வணக்கம்",
+    LanguageRegister.TELUGU_ENGLISH: "నమస్కారం",
+    LanguageRegister.MARATHI_HINGLISH: "नमस्कार",
+    LanguageRegister.HINGLISH: "नमस्ते",
+}
+
+_NATIVE_POSSESSIVES: dict[LanguageRegister, str] = {
+    LanguageRegister.KANNADA_ENGLISH: "ನಿಮ್ಮ",
+    LanguageRegister.TANGLISH: "உங்கள்",
+    LanguageRegister.TELUGU_ENGLISH: "మీ",
+    LanguageRegister.MARATHI_HINGLISH: "तुमचा",
+    LanguageRegister.HINGLISH: "आपका",
+}
+
+_NATIVE_ORDER_WORD: dict[LanguageRegister, str] = {
+    LanguageRegister.KANNADA_ENGLISH: "ಆರ್ಡರ್",
+    LanguageRegister.TANGLISH: "ஆர்டர்",
+    LanguageRegister.TELUGU_ENGLISH: "ఆర్డర్",
+    LanguageRegister.MARATHI_HINGLISH: "ऑर्डर",
+    LanguageRegister.HINGLISH: "ऑर्डर",
+}
+
+_NATIVE_PAYMENT_WORD: dict[LanguageRegister, str] = {
+    LanguageRegister.KANNADA_ENGLISH: "ಪಾವತಿ",
+    LanguageRegister.TANGLISH: "பேமெண்ட்",
+    LanguageRegister.TELUGU_ENGLISH: "చెల్లింపు",
+    LanguageRegister.MARATHI_HINGLISH: "पेमेंट",
+    LanguageRegister.HINGLISH: "पेमेंट",
+}
+
+_NATIVE_TIP_LABEL: dict[LanguageRegister, str] = {
+    LanguageRegister.KANNADA_ENGLISH: "ಸಲಹೆ",
+    LanguageRegister.TANGLISH: "குறிப்பு",
+    LanguageRegister.TELUGU_ENGLISH: "సూచన",
+    LanguageRegister.MARATHI_HINGLISH: "टीप",
+    LanguageRegister.HINGLISH: "सुझाव",
+}
+
+_NATIVE_LINK_LABEL: dict[LanguageRegister, str] = {
+    LanguageRegister.KANNADA_ENGLISH: "1-ಕ್ಲಿಕ್ ಪಾವತಿ ಲಿಂಕ್ ಕೆಳಗೆ:",
+    LanguageRegister.TANGLISH: "1-கிளிக் கட்டண இணைப்பு கீழே:",
+    LanguageRegister.TELUGU_ENGLISH: "1-క్లిక్ చెల్లింపు లింక్ కింద:",
+    LanguageRegister.MARATHI_HINGLISH: "१-क्लिक पेमेंट लिंक खाली:",
+    LanguageRegister.HINGLISH: "1-क्लिक पेमेंट लिंक नीचे:",
+}
+
+_SCRIPT_RANGES: dict[LanguageRegister, tuple[int, int]] = {
+    LanguageRegister.KANNADA_ENGLISH: (0x0C80, 0x0CFF),
+    LanguageRegister.TANGLISH: (0x0B80, 0x0BFF),
+    LanguageRegister.TELUGU_ENGLISH: (0x0C00, 0x0C7F),
+    LanguageRegister.MARATHI_HINGLISH: (0x0900, 0x097F),
+    LanguageRegister.HINGLISH: (0x0900, 0x097F),
 }
 
 # ── Plain human-readable failure cause per category × dialect ─────────────────
@@ -147,6 +213,44 @@ _CAUSE_PHRASES: dict[str, dict[LanguageRegister, str]] = {
     },
 }
 
+_NATIVE_CAUSE_PHRASES: dict[str, dict[LanguageRegister, str]] = {
+    "TEMPORARY_OUTAGE": {
+        LanguageRegister.KANNADA_ENGLISH: "ಬ್ಯಾಂಕ್ ಸರ್ವರ್ ಟೈಮ್‌ಔಟ್‌ನಿಂದ ವಿಫಲವಾಗಿದೆ",
+        LanguageRegister.TANGLISH: "வங்கி சர்வர் நேரம் முடிந்ததால் தோல்வியடைந்தது",
+        LanguageRegister.TELUGU_ENGLISH: "బ్యాంక్ సర్వర్ టైమ్‌అవుట్ వల్ల విఫలమైంది",
+        LanguageRegister.MARATHI_HINGLISH: "बँक सर्व्हर टाइमआउटमुळे अयशस्वी झाले",
+        LanguageRegister.HINGLISH: "बैंक सर्वर टाइमआउट की वजह से फेल हो गया",
+    },
+    "INSUFFICIENT_FUNDS": {
+        LanguageRegister.KANNADA_ENGLISH: "ಖಾತೆಯಲ್ಲಿ ಬ್ಯಾಲೆನ್ಸ್ ಸಾಲದೆ ವಿಫಲವಾಗಿದೆ",
+        LanguageRegister.TANGLISH: "கணக்கில் இருப்பு போதாததால் தோல்வியடைந்தது",
+        LanguageRegister.TELUGU_ENGLISH: "ఖాతాలో బ్యాలెన్స్ చాలకపోవడంతో విఫలమైంది",
+        LanguageRegister.MARATHI_HINGLISH: "खात्यात शिल्लक अपुरी असल्याने अयशस्वी झाले",
+        LanguageRegister.HINGLISH: "खाते में बैलेंस कम होने से फेल हो गया",
+    },
+    "EXPIRED_CARD": {
+        LanguageRegister.KANNADA_ENGLISH: "ಕಾರ್ಡ್ ಅವಧಿ ಮುಗಿದಿರುವುದರಿಂದ ವಿಫಲವಾಗಿದೆ",
+        LanguageRegister.TANGLISH: "அட்டை காலாவதியானதால் தோல்வியடைந்தது",
+        LanguageRegister.TELUGU_ENGLISH: "కార్డ్ గడువు ముగిసినందున విఫలమైంది",
+        LanguageRegister.MARATHI_HINGLISH: "कार्ड मुदत संपल्याने अयशस्वी झाले",
+        LanguageRegister.HINGLISH: "कार्ड की अवधि खत्म होने से फेल हो गया",
+    },
+    "AUTHENTICATION_FAILED": {
+        LanguageRegister.KANNADA_ENGLISH: "OTP/UPI PIN ದೃಢೀಕರಣ ವಿಫಲವಾಗಿದೆ",
+        LanguageRegister.TANGLISH: "OTP/UPI PIN சரிபார்ப்பு தோல்வியடைந்தது",
+        LanguageRegister.TELUGU_ENGLISH: "OTP/UPI PIN ధృవీకరణ విఫలమైంది",
+        LanguageRegister.MARATHI_HINGLISH: "OTP/UPI PIN पडताळणी अयशस्वी झाली",
+        LanguageRegister.HINGLISH: "OTP/UPI PIN प्रमाणीकरण फेल हो गया",
+    },
+    "USER_DROPOFF": {
+        LanguageRegister.KANNADA_ENGLISH: "ಪೂರ್ಣಗೊಂಡಿಲ್ಲ",
+        LanguageRegister.TANGLISH: "முடிக்கப்படவில்லை",
+        LanguageRegister.TELUGU_ENGLISH: "పూర్తి కాలేదు",
+        LanguageRegister.MARATHI_HINGLISH: "पूर्ण झाले नाही",
+        LanguageRegister.HINGLISH: "पूरा नहीं हुआ",
+    },
+}
+
 # ── Actionable fix tips per failure category (English, understood universally) ─
 _ACTION_TIPS: dict[str, str] = {
     "TEMPORARY_OUTAGE": (
@@ -164,6 +268,44 @@ _ACTION_TIPS: dict[str, str] = {
     "USER_DROPOFF": (
         "Your order is saved — complete your payment before the link expires!"
     ),
+}
+
+_NATIVE_ACTION_TIPS: dict[str, dict[LanguageRegister, str]] = {
+    "TEMPORARY_OUTAGE": {
+        LanguageRegister.KANNADA_ENGLISH: "ಚೆಕ್‌ಔಟ್‌ನಲ್ಲಿ ನೇರವಾಗಿ GPay ಅಥವಾ PhonePe UPI ಆಯ್ಕೆಮಾಡಿ — ತಕ್ಷಣ ಅಧಿಕಾರ.",
+        LanguageRegister.TANGLISH: "செக்அவுட்டில் நேரடியாக GPay அல்லது PhonePe UPI தேர்ந்தெடுங்கள் — உடனடி அனுமதி.",
+        LanguageRegister.TELUGU_ENGLISH: "చెక్‌అవుట్‌లో నేరుగా GPay లేదా PhonePe UPI ఎంచుకోండి — తక్షణ అధికారం.",
+        LanguageRegister.MARATHI_HINGLISH: "चेकआउटवर थेट GPay किंवा PhonePe UPI निवडा — त्वरित अधिकृतता.",
+        LanguageRegister.HINGLISH: "चेकआउट पर सीधे GPay या PhonePe UPI चुनें — तुरंत अनुमति।",
+    },
+    "INSUFFICIENT_FUNDS": {
+        LanguageRegister.KANNADA_ENGLISH: "ಖಾತೆಗೆ ಅಗತ್ಯ ಮೊತ್ತ ಸೇರಿಸಿ, ನಂತರ ಲಿಂಕ್ ಟ್ಯಾಪ್ ಮಾಡಿ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
+        LanguageRegister.TANGLISH: "கணக்கில் தேவையான தொகையைச் சேர்த்து, இணைப்பைத் தட்டி மீண்டும் முயற்சிக்கவும்.",
+        LanguageRegister.TELUGU_ENGLISH: "ఖాతాకు అవసరమైన మొత్తం జోడించి, లింక్ ట్యాప్ చేసి మళ్లీ ప్రయత్నించండి.",
+        LanguageRegister.MARATHI_HINGLISH: "खात्यात आवश्यक रक्कम जमा करा, नंतर लिंक टॅप करून पुन्हा प्रयत्न करा.",
+        LanguageRegister.HINGLISH: "खाते में जरूरी राशि डालें, फिर लिंक टैप करके दोबारा कोशिश करें।",
+    },
+    "EXPIRED_CARD": {
+        LanguageRegister.KANNADA_ENGLISH: "ಬ್ಯಾಂಕ್ ಆ್ಯಪ್‌ನಲ್ಲಿ ಕಾರ್ಡ್ ವಿವರ ನವೀಕರಿಸಿ, ನಂತರ ಪಾವತಿ ಲಿಂಕ್ ಟ್ಯಾಪ್ ಮಾಡಿ.",
+        LanguageRegister.TANGLISH: "வங்கி செயலியில் அட்டை விவரத்தைப் புதுப்பித்து, பிறகு கட்டண இணைப்பைத் தட்டவும்.",
+        LanguageRegister.TELUGU_ENGLISH: "బ్యాంక్ యాప్‌లో కార్డ్ వివరాలు అప్‌డేట్ చేసి, చెల్లింపు లింక్ ట్యాప్ చేయండి.",
+        LanguageRegister.MARATHI_HINGLISH: "बँक अॅपमध्ये कार्ड तपशील अपडेट करा, नंतर पेमेंट लिंक टॅप करा.",
+        LanguageRegister.HINGLISH: "बैंकिंग ऐप में कार्ड डिटेल अपडेट करें, फिर पेमेंट लिंक टैप करें।",
+    },
+    "AUTHENTICATION_FAILED": {
+        LanguageRegister.KANNADA_ENGLISH: "ಪಾವತಿ ಲಿಂಕ್ ಟ್ಯಾಪ್ ಮಾಡುವ ಮೊದಲು UPI PIN ಅಥವಾ OTP ಸಿದ್ಧವಿರಲಿ.",
+        LanguageRegister.TANGLISH: "கட்டண இணைப்பைத் தட்டுவதற்கு முன் UPI PIN அல்லது OTP தயார் வையுங்கள்.",
+        LanguageRegister.TELUGU_ENGLISH: "చెల్లింపు లింక్ ట్యాప్ చేయడానికి ముందు UPI PIN లేదా OTP సిద్ధంగా ఉంచండి.",
+        LanguageRegister.MARATHI_HINGLISH: "पेमेंट लिंक टॅप करण्यापूर्वी UPI PIN किंवा OTP तयार ठेवा.",
+        LanguageRegister.HINGLISH: "पेमेंट लिंक टैप करने से पहले UPI PIN या OTP तैयार रखें।",
+    },
+    "USER_DROPOFF": {
+        LanguageRegister.KANNADA_ENGLISH: "ನಿಮ್ಮ ಆರ್ಡರ್ ಉಳಿದಿದೆ — ಲಿಂಕ್ ಅವಧಿ ಮುಗಿಯುವ ಮೊದಲು ಪಾವತಿ ಪೂರ್ಣಗೊಳಿಸಿ!",
+        LanguageRegister.TANGLISH: "உங்கள் ஆர்டர் சேமிக்கப்பட்டுள்ளது — இணைப்பு காலாவதியாகும் முன் பணம் செலுத்துங்கள்!",
+        LanguageRegister.TELUGU_ENGLISH: "మీ ఆర్డర్ సేవ్ అయింది — లింక్ గడువు ముగిసేలోపు చెల్లింపు పూర్తి చేయండి!",
+        LanguageRegister.MARATHI_HINGLISH: "तुमचा ऑर्डर जतन आहे — लिंक कालबाह्य होण्यापूर्वी पेमेंट पूर्ण करा!",
+        LanguageRegister.HINGLISH: "आपका ऑर्डर सेव है — लिंक खत्म होने से पहले पेमेंट पूरा करें!",
+    },
 }
 
 # ── Deterministic templates: {name} {amount} {merchant} {link} ────────────────
@@ -290,19 +432,68 @@ def message_preserves_payment_link(message: str, payment_link: str) -> bool:
     return bool(payment_link) and payment_link in message
 
 
+def contains_native_script(message: str, register: LanguageRegister) -> bool:
+    """True when regional copy includes the expected Indic script block."""
+    if register == LanguageRegister.ENGLISH:
+        return True
+    bounds = _SCRIPT_RANGES.get(register)
+    if not bounds or not message:
+        return False
+    start, end = bounds
+    return any(start <= ord(ch) <= end for ch in message)
+
+
 def render_fallback_message(
     request: RecoveryCopyRequest,
     register: LanguageRegister,
 ) -> str:
-    name = sanitize_text(request.customer_first_name, fallback="there")
-    merchant = sanitize_text(request.merchant_name, max_len=60, fallback="the merchant")
-    amount = Decimal(request.order_amount).quantize(Decimal("0.01"))
-    template = _FALLBACK_TEMPLATES[register]
-    return template.format(
-        name=name,
-        amount=amount,
-        merchant=merchant,
-        link=request.payment_link,
+    return build_rich_whatsapp_message(request, register)
+
+
+def _latin_block(
+    request: RecoveryCopyRequest,
+    register: LanguageRegister,
+    *,
+    name: str,
+    merchant: str,
+    amount: Decimal,
+    cause: str,
+    tip: str,
+) -> str:
+    greeting = _GREETINGS.get(register, "Hello")
+    possessive = _POSSESSIVES.get(register, "Your")
+    return (
+        f"{greeting} {name}! {possessive} {merchant} order (₹{amount}) payment {cause}.\n"
+        f"💡 Tip: {tip}\n"
+        f"🔗 Tap the 1-click payment link below:\n"
+        f"{request.payment_link}"
+    )
+
+
+def _native_block(
+    request: RecoveryCopyRequest,
+    register: LanguageRegister,
+    *,
+    name: str,
+    merchant: str,
+    amount: Decimal,
+    failure_cat: str,
+) -> str | None:
+    greeting = _NATIVE_GREETINGS.get(register)
+    if not greeting:
+        return None
+    possessive = _NATIVE_POSSESSIVES[register]
+    order_word = _NATIVE_ORDER_WORD[register]
+    pay_word = _NATIVE_PAYMENT_WORD[register]
+    cause_map = _NATIVE_CAUSE_PHRASES.get(failure_cat, _NATIVE_CAUSE_PHRASES["USER_DROPOFF"])
+    cause = cause_map.get(register, cause_map[LanguageRegister.HINGLISH])
+    tip_map = _NATIVE_ACTION_TIPS.get(failure_cat, _NATIVE_ACTION_TIPS["USER_DROPOFF"])
+    tip = tip_map.get(register, tip_map[LanguageRegister.HINGLISH])
+    return (
+        f"{greeting} {name}! {possessive} {merchant} {order_word} (₹{amount}) {pay_word} {cause}.\n"
+        f"💡 {_NATIVE_TIP_LABEL[register]}: {tip}\n"
+        f"🔗 {_NATIVE_LINK_LABEL[register]}\n"
+        f"{request.payment_link}"
     )
 
 
@@ -312,37 +503,30 @@ def build_rich_whatsapp_message(
     *,
     bank_outage_note: str | None = None,
 ) -> str:
-    """Build the structured 3-line WhatsApp message sent via Green API.
+    """Build dual-script WhatsApp copy (native Indic + Latin) for Green API.
 
-    Format::
+    Regional format::
 
-        {Greeting} {name}! {Poss} {merchant} order (₹{amount}) payment {cause}.
-        💡 Tip: {actionable tip}
-        🔗 Tap the 1-click payment link below:
-        {link}
-        ℹ️ Note: {bank outage note}   ← only if bank is degraded
+        {native greeting / cause / 💡 tip / payment link}
+        {latin greeting / cause / 💡 tip / payment link}
 
-    All four elements — regional greeting, plain failure cause, actionable tip,
-    and Razorpay payment link — are always present regardless of failure type.
+    Simple English stays a single Latin block. The Razorpay payment link is
+    copied character-for-character into every script block.
     """
     name = sanitize_text(request.customer_first_name, fallback="there")
     merchant = sanitize_text(request.merchant_name, max_len=60, fallback="the merchant")
     amount = Decimal(request.order_amount).quantize(Decimal("0.01"))
-
     failure_cat = classify_failure_code(request.failure_code, request.failure_description)
-
-    greeting = _GREETINGS.get(register, "Hello")
-    possessive = _POSSESSIVES.get(register, "Your")
     cause_map = _CAUSE_PHRASES.get(failure_cat, _CAUSE_PHRASES["USER_DROPOFF"])
     cause = cause_map.get(register, cause_map[LanguageRegister.ENGLISH])
     tip = _ACTION_TIPS.get(failure_cat, _ACTION_TIPS["USER_DROPOFF"])
-
-    message = (
-        f"{greeting} {name}! {possessive} {merchant} order (₹{amount}) payment {cause}.\n"
-        f"💡 Tip: {tip}\n"
-        f"🔗 Tap the 1-click payment link below:\n"
-        f"{request.payment_link}"
+    latin = _latin_block(
+        request, register, name=name, merchant=merchant, amount=amount, cause=cause, tip=tip
     )
+    native = _native_block(
+        request, register, name=name, merchant=merchant, amount=amount, failure_cat=failure_cat
+    )
+    message = f"{native}\n\n{latin}" if native else latin
     if bank_outage_note:
         message += f"\nℹ️ Note: {bank_outage_note}"
     return message
@@ -376,9 +560,12 @@ def _build_messages(request: RecoveryCopyRequest, register: LanguageRegister) ->
     style = _LOCALE_STYLE[register]
     system = (
         "You are RecoverPay AI, a payment recovery assistant for an Indian merchant. "
-        "Diagnose the failure and write one short WhatsApp recovery message. "
+        "Diagnose the failure and write one WhatsApp recovery message. "
         "Reply with a single JSON object only. Never invent discounts, refunds, or new URLs. "
-        "Copy the payment_link character-for-character into hinglish_message."
+        "Copy the payment_link character-for-character into EVERY script block of hinglish_message. "
+        "For regional registers, hinglish_message MUST be dual-script: native Indic script first, "
+        "then a blank line, then the Latin transliteration. Both blocks need a plain failure cause, "
+        "a 💡 actionable tip, and the payment link on its own line. Simple English is one block only."
     )
     user_payload = {
         "language_register": register.value,
@@ -400,7 +587,10 @@ def _build_messages(request: RecoveryCopyRequest, register: LanguageRegister) ->
                 "INSUFFICIENT_FUNDS | AUTHENTICATION_FAILED"
             ),
             "diagnostic_summary": "string, 5-500 chars",
-            "hinglish_message": "string, 10-300 chars, must include payment_link exactly",
+            "hinglish_message": (
+                "string, 10-1600 chars, dual-script for regional locales, "
+                "must include payment_link exactly in each block"
+            ),
             "confidence_score": "float 0.0-1.0",
             "contains_payment_link": "boolean true",
             "language_register": register.value,
@@ -449,6 +639,15 @@ def _accept_or_fallback(
             request,
             reason="LLM altered or dropped the Razorpay payment link; using template",
             register=register,
+        )
+    if not contains_native_script(output.hinglish_message, register):
+        dual = build_rich_whatsapp_message(request, register)
+        return output.model_copy(
+            update={
+                "hinglish_message": dual,
+                "contains_payment_link": True,
+                "language_register": register,
+            }
         )
     return output.model_copy(update={"contains_payment_link": True, "language_register": register})
 

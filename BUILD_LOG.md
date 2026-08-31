@@ -104,6 +104,14 @@ This file tracks all technical errors, package conflicts, API failures, and stru
 
 ---
 
+### [Entry #30] Dual-script regional WhatsApp copy
+- **Status**: 🟢 COMPLETE
+- **Component**: `backend/agent.py`
+- **What happened**: GPT and fallback templates were Latin-only (Kanglish/Tanglish/Hinglish). Accessibility needed native Indic script plus transliteration, with the same cause, 💡 tip, and Razorpay link in both blocks.
+- **Fix / Action Taken**: Added native dictionaries and dual-script composer. LLM output missing the expected Unicode range is rewritten with the template. `hinglish_message` max length raised to 1600.
+
+---
+
 ### [Entry #29] Plaintext workspace secrets + HTTP PUBLIC_BASE_URL ignored
 - **Status**: 🟢 RESOLVED
 - **Component**: `backend/env.py`, `backend/tunnel.py`

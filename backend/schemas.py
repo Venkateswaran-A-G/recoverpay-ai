@@ -202,8 +202,8 @@ class LLMDiagnosticOutput(BaseModel):
     hinglish_message: str = Field(
         ...,
         min_length=10,
-        max_length=300,
-        description="WhatsApp recovery copy in the resolved regional register",
+        max_length=1600,
+        description="WhatsApp recovery copy: native Indic script + Latin transliteration",
     )
     confidence_score: float = Field(..., ge=0.0, le=1.0)
     contains_payment_link: bool
