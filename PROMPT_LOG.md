@@ -465,3 +465,13 @@ This file records every prompt given to Cursor Pro, the files generated/edited, 
   - `INTERVIEW_ATOZ.md` — complete panel guide (pitch, stack, architecture, state machine, guardrails, LLM, WhatsApp/voice, metrics, APIs, security, demo script, Q&A)
   - `PROMPT_LOG.md`
 - **Actions Executed**: Wrote an interview A-to-Z based on shipped code (FastAPI + `frontend/index.html`, Green API, `/pay/{id}`, dual-script WhatsApp, ₹5k / ₹20k gates). Documented honest spec vs reality (no Next.js). Committed and pushed.
+
+---
+
+### [Prompt #42] - 5-minute Loom teleprompter script
+- **Timestamp**: 2026-09-01 / Demo pitch
+- **Exact User Prompt**: "i have to record a loom type video for the demo pitch for 5 mins please give me the script and what i should do and what i should show . i want the script like in teleprompter so i can read directly"
+- **Files Created / Modified**:
+  - `DEMO_PITCH_TELEPROMPTER.md` — timed 5-min spoken script, click-by-click shot list, backup lines
+  - `PROMPT_LOG.md`
+- **Actions Executed**: Wrote a teleprompter aligned to the live UI (Simulate 20, Approve >₹5K, Decline voice, Inspect Audit, Confirm payment). Setup checklist and failure backups included. Committed and pushed.
