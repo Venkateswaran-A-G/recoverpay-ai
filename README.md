@@ -13,7 +13,6 @@ Razorpay AI Buildathon 2026 · **Track 03: AI Revenue Recovery**
 | **Repo** | [github.com/Venkateswaran-A-G/recoverpay-ai](https://github.com/Venkateswaran-A-G/recoverpay-ai) |
 | **Local demo** | [http://localhost:8000](http://localhost:8000) after `run.bat` / `./run.sh` |
 | **Deployed demo** | _Add your public URL (Cloudflare tunnel or host)_ |
-| **Slide deck** | _Add your deck URL_ |
 | **5-min pitch video** | _Add your Loom / YouTube URL_ |
 
 ---
