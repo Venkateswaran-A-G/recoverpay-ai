@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -15,11 +16,22 @@ TUNNEL_FILE = Path(__file__).resolve().parent.parent / ".tunnel-url"
 CLOUDFLARED = Path(__file__).resolve().parent.parent / "tools" / "cloudflared.exe"
 _started = False
 _lock = threading.Lock()
+_tunnel_proc: subprocess.Popen | None = None
 _LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1"}
+_CF_RESERVED_SUBS = {"api", "www", "dash", "developers", "one"}
 
 
 def _test_mode() -> bool:
     return os.getenv("TEST_MODE", "").strip().lower() in {"1", "true", "yes"}
+
+
+def parse_trycloudflare_origin(text: str) -> str | None:
+    """Return a visitor origin, never Cloudflare's own ``api.trycloudflare.com``."""
+    for match in re.finditer(r"https://([a-z0-9-]+)\.trycloudflare\.com", text or "", re.I):
+        if match.group(1).lower() in _CF_RESERVED_SUBS:
+            continue
+        return match.group(0).rstrip("/")
+    return None
 
 
 def is_configured_public_base(url: str) -> bool:
@@ -75,7 +87,21 @@ def ensure_public_tunnel(port: int = 8000) -> None:
         if _started:
             return
         cached = read_tunnel_base()
-        cloudflare_ok = bool(cached and "trycloudflare.com" in cached and probe_tunnel(cached))
+        host = (urlparse(cached or "").hostname or "").lower()
+        if host == "api.trycloudflare.com" or host.split(".")[0] in _CF_RESERVED_SUBS:
+            try:
+                TUNNEL_FILE.unlink()
+            except OSError:
+                pass
+            cached = None
+            host = ""
+        cloudflare_ok = bool(
+            cached
+            and "trycloudflare.com" in cached
+            and host not in {f"{s}.trycloudflare.com" for s in _CF_RESERVED_SUBS}
+            and not host.startswith("api.")
+            and probe_tunnel(cached)
+        )
         loca_ok = bool(cached and "loca.lt" in cached and not CLOUDFLARED.is_file() and probe_tunnel(cached))
         if cloudflare_ok or loca_ok:
             _started = True
@@ -97,6 +123,7 @@ def _spawn_public_tunnel(port: int) -> None:
 
 
 def _spawn_cloudflared(port: int) -> bool:
+    global _tunnel_proc
     cmd = [
         str(CLOUDFLARED),
         "tunnel",
@@ -118,12 +145,31 @@ def _spawn_cloudflared(port: int) -> bool:
         return False
     if proc.stdout is None:
         return False
-    for line in proc.stdout:
-        match = re.search(r"https://[a-z0-9-]+\.trycloudflare\.com", line, re.I)
-        if match:
-            _write_tunnel_url(match.group(0))
+    _tunnel_proc = proc
+    found: dict[str, str | None] = {"url": None}
+
+    def _drain() -> None:
+        assert proc.stdout is not None
+        for line in proc.stdout:
+            origin = parse_trycloudflare_origin(line)
+            if origin and found["url"] is None:
+                found["url"] = origin
+            # Keep reading so cloudflared cannot block on a full pipe.
+
+    threading.Thread(target=_drain, daemon=True).start()
+    deadline = time.time() + 25
+    while time.time() < deadline:
+        if found["url"]:
+            origin = found["url"]
+            settle = time.time() + 8
+            while time.time() < settle and not probe_tunnel(origin):
+                time.sleep(0.4)
+            _write_tunnel_url(origin)
             return True
-    print("[tunnel] cloudflared exited without a public URL", file=sys.stderr)
+        if proc.poll() is not None:
+            break
+        time.sleep(0.15)
+    print("[tunnel] cloudflared exited without a public visitor URL", file=sys.stderr)
     return False
 
 

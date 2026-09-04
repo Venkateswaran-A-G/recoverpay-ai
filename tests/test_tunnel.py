@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import backend.tunnel as tunnel
+from backend.tunnel import parse_trycloudflare_origin
 
 
 def test_http_and_https_public_bases_are_configured():
@@ -47,3 +48,11 @@ def test_ensure_public_tunnel_skips_https_public_base(monkeypatch):
     monkeypatch.setattr(tunnel.threading, "Thread", _Thread)
     tunnel.ensure_public_tunnel()
     assert spawned["n"] == 0
+
+
+def test_parse_trycloudflare_origin_skips_api_host():
+    assert parse_trycloudflare_origin("https://api.trycloudflare.com/tunnel") is None
+    assert (
+        parse_trycloudflare_origin("visit https://amber-cat-demo.trycloudflare.com now")
+        == "https://amber-cat-demo.trycloudflare.com"
+    )

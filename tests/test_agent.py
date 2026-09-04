@@ -152,6 +152,8 @@ def test_localhost_is_not_whatsapp_linkifiable():
     assert is_whatsapp_linkifiable("http://127.0.0.1:8000/api/v1/recovery/pay/x") is False
     assert is_whatsapp_linkifiable("http://localhost:8000/pay") is False
     assert is_whatsapp_linkifiable("https://rzp.io/l/x8y9z21") is True
+    assert is_whatsapp_linkifiable("https://api.trycloudflare.com/pay/x") is False
+    assert is_whatsapp_linkifiable("https://amber-cat-demo.trycloudflare.com/pay/x") is True
 
 
 def test_rich_message_puts_https_link_on_own_line():

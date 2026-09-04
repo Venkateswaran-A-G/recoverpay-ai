@@ -482,7 +482,7 @@ def public_app_base() -> str:
         return env
     if not is_test_mode():
         tunnel = read_tunnel_base()
-        if tunnel:
+        if tunnel and is_whatsapp_linkifiable(tunnel):
             return tunnel.rstrip("/")
     return env or "http://127.0.0.1:8000"
 

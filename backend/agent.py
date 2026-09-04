@@ -410,6 +410,8 @@ def is_whatsapp_linkifiable(url: str) -> bool:
         return False
     if host in _LOCAL_HOSTS or host.endswith(".local"):
         return False
+    if host == "api.trycloudflare.com":
+        return False
     try:
         ip = ipaddress.ip_address(host)
         if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
