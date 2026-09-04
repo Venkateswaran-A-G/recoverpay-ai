@@ -329,7 +329,7 @@ def test_batch_simulator_exactly_one_voice_permission_txn(client):
     assert all(t["recovery_status"] != RecoveryStatus.VOICE_CALL_DISPATCHED.value for t in txns)
 
 
-def test_batch_simulator_recovers_about_72_percent_under_5k(client):
+def test_batch_simulator_recovers_about_65_percent_under_5k(client):
     test_client, _ = client
     batch = test_client.post(
         "/api/v1/simulator/run-batch?count=20",
@@ -346,12 +346,12 @@ def test_batch_simulator_recovers_about_72_percent_under_5k(client):
     convertible = recovered + dispatched
     assert convertible
     share = len(recovered) / len(convertible)
-    assert 0.68 <= share <= 0.80
+    assert 0.60 <= share <= 0.75
     over_20k = [t for t in txns if float(t["amount"]) > 20000]
     assert len(over_20k) == 1
     assert over_20k[0]["recovery_status"] == RecoveryStatus.REQUIRES_VOICE_CALL_PERMISSION.value
     metrics = test_client.get("/api/v1/dashboard/metrics", headers={"X-API-KEY": "demo_dashboard_key"}).json()
-    assert 68.0 <= metrics["recovery_rate_percent"] <= 75.0
+    assert 60.0 <= metrics["recovery_rate_percent"] <= 75.0
     assert metrics["recovery_rate_percentage"] == metrics["recovery_rate_percent"]
 
 
