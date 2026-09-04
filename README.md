@@ -11,8 +11,8 @@ Razorpay AI Buildathon 2026 · **Track 03: AI Revenue Recovery**
 | | |
 |---|---|
 | **Repo** | [github.com/Venkateswaran-A-G/recoverpay-ai](https://github.com/Venkateswaran-A-G/recoverpay-ai) |
-| **Local demo** | [http://localhost:8000](http://localhost:8000) after `run.bat` / `./run.sh` |
-| **Deployed demo** | _Add your public URL (Cloudflare tunnel or host)_ |
+| **Demo** | Local only — [http://localhost:8000](http://localhost:8000) after `run.bat` / `./run.sh`. **No cloud deployment.** |
+| **Slide deck** | _Add your deck URL_ |
 | **5-min pitch video** | _Add your Loom / YouTube URL_ |
 
 ---
@@ -166,7 +166,7 @@ TWILIO_PHONE_NUMBER="+1XXXXXXXXXX"
 |---|---|
 | `TEST_MODE=true` | No live OpenAI / WhatsApp / Twilio. Templates + pytest-safe. |
 | `TEST_MODE=false` | Live outreach. Dashboard calls send `X-API-KEY: demo_dashboard_key`. |
-| `PUBLIC_BASE_URL` | Public `https://…` so a phone can open `/pay/{id}`. If unset, the app tries a Cloudflare tunnel. |
+| `PUBLIC_BASE_URL` | Leave unset for local demo. The app opens a Cloudflare tunnel so a phone can tap `/pay/{id}`. |
 
 **Never commit `.env`.** Placeholders stay in `.env.example`.
 
