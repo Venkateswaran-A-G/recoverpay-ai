@@ -113,6 +113,7 @@ def test_dashboard_served_at_root(client):
     assert "Stage-by-Stage Recovery Conversion Funnel" in response.text
     assert "Failure Reason Breakdown" in response.text
     assert "Human Review Queue" in response.text
+    assert "voicePermissionDetails" in response.text
     assert "TEMPORARY_BANK_DEGRADATION" in response.text
     assert "bg-gradient-to-r from-rose-600 via-rose-500 to-pink-500" in response.text
     assert "luxury-fill" in response.text
@@ -354,7 +355,28 @@ def test_batch_simulator_recovers_about_72_percent_under_5k(client):
     assert metrics["recovery_rate_percentage"] == metrics["recovery_rate_percent"]
 
 
-def test_whatsapp_payment_link_click_marks_recovered(client):
+def test_whatsapp_pay_page_does_not_change_status(client):
+    test_client, _ = client
+    payload = _webhook_body(entity_overrides={"id": "pay_choice"})
+    body = json.dumps(payload).encode()
+    ingest = test_client.post(
+        "/api/v1/webhooks/razorpay",
+        content=body,
+        headers={"Content-Type": "application/json", "X-Razorpay-Signature": _sign(body)},
+    )
+    txn_id = ingest.json()["transaction_id"]
+    assert ingest.json()["recovery_status"] == RecoveryStatus.RECOVERY_DISPATCHED.value
+    page = test_client.get(f"/pay/{txn_id}")
+    assert page.status_code == 200
+    assert "Confirm" in page.text
+    assert "Decline" in page.text
+    alias = test_client.get(f"/api/v1/recovery/pay/{txn_id}")
+    assert alias.status_code == 200
+    detail = test_client.get(f"/api/v1/audit-logs/{txn_id}", headers={"X-API-KEY": "demo_dashboard_key"})
+    assert detail.json()["transaction"]["recovery_status"] == RecoveryStatus.RECOVERY_DISPATCHED.value
+
+
+def test_whatsapp_payment_link_confirm_marks_recovered(client):
     test_client, _ = client
     payload = _webhook_body(entity_overrides={"id": "pay_click"})
     body = json.dumps(payload).encode()
@@ -365,14 +387,40 @@ def test_whatsapp_payment_link_click_marks_recovered(client):
     )
     txn_id = ingest.json()["transaction_id"]
     assert ingest.json()["recovery_status"] == RecoveryStatus.RECOVERY_DISPATCHED.value
-    clicked = test_client.get(f"/pay/{txn_id}")
+    clicked = test_client.post(f"/pay/{txn_id}/confirm")
     assert clicked.status_code == 200
-    already = test_client.get(f"/api/v1/recovery/pay/{txn_id}")
+    assert "Recovered" in clicked.text
+    already = test_client.get(f"/api/v1/recovery/pay/{txn_id}/confirm")
     assert already.status_code == 200
     detail = test_client.get(f"/api/v1/audit-logs/{txn_id}", headers={"X-API-KEY": "demo_dashboard_key"})
     assert detail.json()["transaction"]["recovery_status"] == RecoveryStatus.RECOVERED.value
     steps = {row["step_name"] for row in detail.json()["audit_logs"]}
     assert "PAYMENT_EVIDENCE_CONFIRMED" in steps
+
+
+def test_whatsapp_payment_link_decline_marks_opted_out(client):
+    test_client, SessionLocal = client
+    payload = _webhook_body(entity_overrides={"id": "pay_decline", "contact": "+919812345678"})
+    body = json.dumps(payload).encode()
+    ingest = test_client.post(
+        "/api/v1/webhooks/razorpay",
+        content=body,
+        headers={"Content-Type": "application/json", "X-Razorpay-Signature": _sign(body)},
+    )
+    txn_id = ingest.json()["transaction_id"]
+    declined = test_client.post(f"/pay/{txn_id}/decline")
+    assert declined.status_code == 200
+    assert "Opted out" in declined.text
+    detail = test_client.get(f"/api/v1/audit-logs/{txn_id}", headers={"X-API-KEY": "demo_dashboard_key"})
+    assert detail.json()["transaction"]["recovery_status"] == RecoveryStatus.OPTED_OUT.value
+    steps = {row["step_name"] for row in detail.json()["audit_logs"]}
+    assert "PAYMENT_LINK_DECLINED" in steps
+    db = SessionLocal()
+    try:
+        phone = db.get(Transaction, txn_id).customer_phone
+        assert db.get(OptOutRegistry, phone) is not None
+    finally:
+        db.close()
 
 
 def _paid_body(txn_id: str, payment_id: str = "pay_recovered_1") -> dict:

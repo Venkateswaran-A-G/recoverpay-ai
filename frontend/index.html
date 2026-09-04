@@ -98,7 +98,7 @@
       left: 16px;
       top: 88px;
       z-index: 46;
-      width: min(320px, calc(100vw - 32px));
+      width: min(360px, calc(100vw - 32px));
       transform: translateX(calc(-100% - 24px));
       opacity: 0;
       pointer-events: none;
@@ -271,7 +271,8 @@
       <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-rose-500/20 text-base">🚨</span>
       <div class="min-w-0 flex-1">
         <p class="text-[10px] font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-300">Voice call permission</p>
-        <p id="voicePermissionCopy" class="text-[12px] font-semibold text-rose-800 dark:text-rose-100 leading-snug mt-0.5">HIGH-VALUE FAILURE (₹25,000): Requesting Merchant Permission for AI Voice Call to Customer</p>
+        <p id="voicePermissionCopy" class="text-[12px] font-semibold text-rose-800 dark:text-rose-100 leading-snug mt-0.5">High-value failure — requesting merchant permission for an AI voice call</p>
+        <dl id="voicePermissionDetails" class="mt-2 space-y-1 text-[11px] text-rose-900/90 dark:text-rose-50/90 leading-snug"></dl>
         <div class="flex flex-col gap-1.5 mt-2.5">
           <button id="voiceAcceptBtn" type="button" class="w-full rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-rose-800 dark:text-rose-100 bg-rose-500/20 border border-rose-500/40">📞 Accept &amp; Place AI Voice Call</button>
           <button id="voiceDeclineBtn" type="button" class="w-full rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 dark:text-slate-200 bg-white/80 dark:bg-slate-900/70 border border-slate-300 dark:border-slate-700">❌ Decline Call</button>
@@ -326,6 +327,7 @@
       { key: "DISPATCH", label: "Dispatch", match: ["DISPATCH", "PAYMENT_LINK_GEN"] },
       { key: "VOICE", label: "Voice Call", match: ["REAL_PHONE_VOICE_CALL_PLACED", "VOICE_CALL_PERMISSION_REQUIRED", "VOICE_CALL_DECLINED", "HIGH_VALUE_VOICE_RECOVERY_CONFIRMED"] },
       { key: "PAID", label: "Payment Evidence", match: ["PAYMENT_EVIDENCE_CONFIRMED"] },
+      { key: "OPT_OUT", label: "Opt-out", match: ["PAYMENT_LINK_DECLINED", "OPT_OUT"] },
     ];
     const PILL = {
       PENDING: "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
@@ -500,7 +502,7 @@
           <div><span class="inline-block rounded-full px-2 py-1 text-[10px] font-semibold ${PILL[txn.recovery_status] || PILL.PENDING}">${prettyStatus(txn.recovery_status)}</span></div>
           <div class="flex flex-wrap gap-1.5 justify-end">
             ${flagged && !voiceHigh ? `<button class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-amber-800 dark:text-amber-300 bg-amber-500/15 border border-amber-500/40" data-approve="${txn.id}">🚨 Approve &amp; Send (&gt;₹5K)</button>` : ""}
-            ${dispatched ? `<a class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-emerald-800 dark:text-emerald-200 bg-emerald-500/15 border border-emerald-500/40" href="/pay/${txn.id}" target="_blank" rel="noopener">Confirm payment</a>` : ""}
+            ${dispatched ? `<a class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-emerald-800 dark:text-emerald-200 bg-emerald-500/15 border border-emerald-500/40" href="/pay/${txn.id}" target="_blank" rel="noopener">Open pay page</a>` : ""}
             <button class="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold bg-white/80 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800/80" data-inspect="${txn.id}">Inspect Audit</button>
           </div>`;
         stream.appendChild(row);
@@ -575,12 +577,26 @@
       banner.classList.toggle("show", Boolean(pending));
       const acceptBtn = $("voiceAcceptBtn");
       const declineBtn = $("voiceDeclineBtn");
+      const details = $("voicePermissionDetails");
+      const copy = $("voicePermissionCopy");
       acceptBtn.disabled = !pending;
       declineBtn.disabled = !pending;
       acceptBtn.textContent = "📞 Accept & Place AI Voice Call";
       if (pending) {
         acceptBtn.setAttribute("data-voice-id", pending.id);
         declineBtn.setAttribute("data-voice-id", pending.id);
+        const state = pending.customer_state || "Unknown";
+        copy.textContent = "High-value failure — requesting merchant permission for an AI voice call";
+        details.innerHTML = `
+          <div class="flex justify-between gap-2"><dt class="text-rose-700/80 dark:text-rose-200/70">Customer</dt><dd class="font-semibold text-right">${escapeHtml(pending.customer_name || "Customer")}</dd></div>
+          <div class="flex justify-between gap-2"><dt class="text-rose-700/80 dark:text-rose-200/70">Amount</dt><dd class="font-mono font-semibold text-right">${escapeHtml(formatINR(pending.amount))}</dd></div>
+          <div class="flex justify-between gap-2"><dt class="text-rose-700/80 dark:text-rose-200/70">Phone</dt><dd class="font-mono text-right">${escapeHtml(pending.customer_phone || "—")}</dd></div>
+          <div class="flex justify-between gap-2"><dt class="text-rose-700/80 dark:text-rose-200/70">Region</dt><dd class="text-right">${escapeHtml(state)} · ${escapeHtml(localeFor(state))}</dd></div>
+          <div class="flex justify-between gap-2"><dt class="text-rose-700/80 dark:text-rose-200/70">Failure</dt><dd class="font-mono text-right">${escapeHtml(pending.failure_code || "—")}</dd></div>
+          <div class="flex justify-between gap-2"><dt class="text-rose-700/80 dark:text-rose-200/70">Merchant</dt><dd class="text-right">${escapeHtml(pending.merchant_id || "—")}</dd></div>
+        `;
+      } else if (details) {
+        details.innerHTML = "";
       }
     }
 

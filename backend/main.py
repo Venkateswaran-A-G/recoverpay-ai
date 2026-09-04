@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from decimal import Decimal
 from typing import Any
 
+from html import escape as xml_escape
 from pathlib import Path
 
 from fastapi import Body, Depends, FastAPI, Header, HTTPException, Query, Request
@@ -27,6 +28,7 @@ from backend.database import get_db, init_db
 from backend.tunnel import ensure_public_tunnel, read_tunnel_base
 from backend.guardrails import evaluate_guardrails, is_opted_out
 from backend.models import AuditLog, OptOutRegistry, Transaction
+from backend import pay_pages
 from backend.razorpay_client import (
     generate_payment_link,
     is_test_mode,
@@ -44,6 +46,7 @@ from backend.schemas import (
     DashboardMetrics,
     ExecutionGraphNode,
     FAILURE_BREAKDOWN_KEYS,
+    OptOutSource,
     PaidWebhookResponse,
     RazorpayFailurePayload,
     RecoveryCopyRequest,
@@ -475,11 +478,11 @@ def recovery_pay_url(txn_id: str) -> str:
 
 
 def whatsapp_payment_link(txn_id: str, rzp_link: str | None = None) -> str:
-    """Always land on RecoverPay ``/pay/{id}`` so a tap marks RECOVERED.
+    """Always land on RecoverPay ``/pay/{id}`` (Confirm / Decline page).
 
     WhatsApp only hyperlinks public http(s) hosts. Live demo waits once for
     the Cloudflare/loca.lt tunnel so the bubble is a real RecoverPay URL, not
-    ``href.li`` or ``rzp.io``.
+    ``href.li`` or ``rzp.io``. Confirm marks RECOVERED; Decline marks OPTED_OUT.
     """
     recover = recovery_pay_url(txn_id)
     if is_whatsapp_linkifiable(recover):
@@ -519,6 +522,59 @@ def mark_payment_recovered(
         raw_payload=payload,
     )
     return True
+
+
+def apply_pay_link_decline(db: Session, txn: Transaction) -> int:
+    """Mark this recovery OPTED_OUT, register the phone, stop sibling outreach."""
+    phone = (txn.customer_phone or "").strip()
+    if phone and db.query(OptOutRegistry).filter(OptOutRegistry.phone_number == phone).first() is None:
+        db.add(
+            OptOutRegistry(
+                phone_number=phone,
+                opt_out_source=OptOutSource.PAY_LINK_DECLINE.value,
+            )
+        )
+
+    open_statuses = {
+        RecoveryStatus.PENDING.value,
+        RecoveryStatus.RECOVERY_DISPATCHED.value,
+        RecoveryStatus.FLAGGED_FOR_APPROVAL.value,
+        RecoveryStatus.PENDING_RETRY.value,
+        RecoveryStatus.BANK_OUTAGE_HOLD.value,
+        RecoveryStatus.RETRY_SCHEDULED_POST_BANK_RECOVERY.value,
+        RecoveryStatus.REQUIRES_VOICE_CALL_PERMISSION.value,
+    }
+    targets: list[Transaction] = [txn]
+    if phone:
+        siblings = (
+            db.query(Transaction)
+            .filter(
+                Transaction.customer_phone == phone,
+                Transaction.id != txn.id,
+                Transaction.recovery_status.in_(open_statuses),
+            )
+            .all()
+        )
+        targets.extend(siblings)
+
+    updated = 0
+    seen: set[str] = set()
+    for row in targets:
+        if row.id in seen:
+            continue
+        seen.add(row.id)
+        if row.recovery_status == RecoveryStatus.OPTED_OUT.value:
+            continue
+        row.recovery_status = RecoveryStatus.OPTED_OUT.value
+        write_audit(
+            db,
+            transaction_id=row.id,
+            step_name=AuditStepName.PAYMENT_LINK_DECLINED.value,
+            step_status=AuditStepStatus.SUCCESS.value,
+            raw_payload={"source": "whatsapp_pay_link_decline", "primary_transaction_id": txn.id},
+        )
+        updated += 1
+    return updated
 
 
 def dispatch_recovery(
@@ -919,29 +975,51 @@ async def razorpay_paid_webhook(request: Request, db: Session = Depends(get_db))
     )
 
 
-def _complete_whatsapp_payment_click(transaction_id: str, db: Session) -> HTMLResponse:
-    """Mark RECOVERY_DISPATCHED → RECOVERED when the customer opens the pay URL."""
+def _pay_choice_page(transaction_id: str, db: Session) -> HTMLResponse:
+    """Landing page only — opening the WhatsApp link does not change status."""
     txn = db.get(Transaction, transaction_id)
     if txn is None:
         raise HTTPException(status_code=404, detail="Transaction not found")
     if txn.recovery_status == RecoveryStatus.RECOVERED.value:
-        return HTMLResponse(
-            "<html><body style='font-family:Sora,sans-serif;background:#080a0f;color:#f8fafc;"
-            "display:grid;place-items:center;min-height:100vh'><p>Payment already recorded. Thank you.</p></body></html>"
-        )
-    if txn.recovery_status != RecoveryStatus.RECOVERY_DISPATCHED.value:
-        raise HTTPException(
-            status_code=409,
-            detail=f"Transaction is {txn.recovery_status}, not RECOVERY_DISPATCHED",
-        )
-    mark_payment_recovered(db, txn, source="whatsapp_payment_link_click")
-    db.commit()
-    return HTMLResponse(
-        "<html><body style='font-family:Sora,sans-serif;background:#080a0f;color:#f8fafc;"
-        "display:grid;place-items:center;min-height:100vh'>"
-        "<div style='text-align:center'><p style='font-size:22px'>Payment confirmed</p>"
-        "<p style='color:#94a3b8'>RecoverPay AI marked this order RECOVERED.</p></div></body></html>"
+        return pay_pages.recovered_page(already=True)
+    if txn.recovery_status == RecoveryStatus.OPTED_OUT.value:
+        return pay_pages.opted_out_page(already=True)
+    amount = f"{Decimal(txn.amount):,.2f}"
+    return pay_pages.choice_page(
+        transaction_id=txn.id,
+        customer_name=txn.customer_name,
+        amount=amount,
     )
+
+
+def _confirm_pay_link(transaction_id: str, db: Session) -> HTMLResponse:
+    txn = db.get(Transaction, transaction_id)
+    if txn is None:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if txn.recovery_status == RecoveryStatus.RECOVERED.value:
+        return pay_pages.recovered_page(already=True)
+    if txn.recovery_status == RecoveryStatus.OPTED_OUT.value:
+        return pay_pages.opted_out_page(already=True)
+    if txn.recovery_status != RecoveryStatus.RECOVERY_DISPATCHED.value:
+        return pay_pages.status_page(
+            f"This order is {txn.recovery_status}, so it cannot be confirmed as paid."
+        )
+    mark_payment_recovered(db, txn, source="whatsapp_payment_link_confirm")
+    db.commit()
+    return pay_pages.recovered_page(already=False)
+
+
+def _decline_pay_link(transaction_id: str, db: Session) -> HTMLResponse:
+    txn = db.get(Transaction, transaction_id)
+    if txn is None:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if txn.recovery_status == RecoveryStatus.RECOVERED.value:
+        return pay_pages.recovered_page(already=True)
+    if txn.recovery_status == RecoveryStatus.OPTED_OUT.value:
+        return pay_pages.opted_out_page(already=True)
+    apply_pay_link_decline(db, txn)
+    db.commit()
+    return pay_pages.opted_out_page(already=False)
 
 
 @app.get("/pay/{transaction_id}", include_in_schema=True)
@@ -949,8 +1027,8 @@ def recovery_payment_short_link(
     transaction_id: str,
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
-    """Short WhatsApp pay URL — same evidence as ``/api/v1/recovery/pay/{id}``."""
-    return _complete_whatsapp_payment_click(transaction_id, db)
+    """WhatsApp tap lands here: Confirm (RECOVERED) or Decline (OPTED_OUT)."""
+    return _pay_choice_page(transaction_id, db)
 
 
 @app.get("/api/v1/recovery/pay/{transaction_id}", include_in_schema=True)
@@ -958,8 +1036,50 @@ def recovery_payment_link_click(
     transaction_id: str,
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
-    """WhatsApp 1-click payment link — records evidence and marks RECOVERED."""
-    return _complete_whatsapp_payment_click(transaction_id, db)
+    """Longer alias of ``GET /pay/{id}`` — choice page, no status change."""
+    return _pay_choice_page(transaction_id, db)
+
+
+@app.api_route("/pay/{transaction_id}/confirm", methods=["GET", "POST"], include_in_schema=True)
+def recovery_payment_confirm(
+    transaction_id: str,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    """Customer tapped Confirm → RECOVERED."""
+    return _confirm_pay_link(transaction_id, db)
+
+
+@app.api_route(
+    "/api/v1/recovery/pay/{transaction_id}/confirm",
+    methods=["GET", "POST"],
+    include_in_schema=True,
+)
+def recovery_payment_confirm_long(
+    transaction_id: str,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    return _confirm_pay_link(transaction_id, db)
+
+
+@app.api_route("/pay/{transaction_id}/decline", methods=["GET", "POST"], include_in_schema=True)
+def recovery_payment_decline(
+    transaction_id: str,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    """Customer tapped Decline → OPTED_OUT."""
+    return _decline_pay_link(transaction_id, db)
+
+
+@app.api_route(
+    "/api/v1/recovery/pay/{transaction_id}/decline",
+    methods=["GET", "POST"],
+    include_in_schema=True,
+)
+def recovery_payment_decline_long(
+    transaction_id: str,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    return _decline_pay_link(transaction_id, db)
 
 
 @app.get("/api/v1/dashboard/metrics", response_model=DashboardMetrics)
@@ -1107,7 +1227,12 @@ def approve_all_pending_reviews(
     )
 
 
-def _place_twilio_voice_call() -> str:
+def _place_twilio_voice_call(
+    *,
+    amount: Decimal,
+    customer_name: str | None,
+    merchant_id: str,
+) -> str:
     """Place a live Twilio Voice call to the merchant-approved recovery number."""
     if is_test_mode():
         return "CA_TEST_MODE_SKIPPED"
@@ -1117,9 +1242,12 @@ def _place_twilio_voice_call() -> str:
     if not account_sid or not auth_token:
         raise HTTPException(status_code=503, detail="Twilio Voice credentials are not configured")
 
+    spoken_amount = f"{amount:,.0f}"
+    spoken_name = xml_escape((customer_name or "there").split()[0])
+    spoken_merchant = xml_escape((merchant_id or "your merchant")[:40])
     twiml = (
         '<Response><Say voice="Polly.Aditi" language="en-IN">'
-        "Namaskara! Your payment of 25,000 rupees for KetoKrafts timed out. "
+        f"Namaskara {spoken_name}! Your payment of {spoken_amount} rupees for {spoken_merchant} timed out. "
         "We have sent a 1-click UPI recovery link to your WhatsApp. "
         "Please check your phone to authorize your order."
         "</Say></Response>"
@@ -1182,7 +1310,11 @@ def approve_and_place_voice_call(
     if is_opted_out(db, txn.customer_phone):
         raise HTTPException(status_code=409, detail="Customer is opted out — voice call blocked")
 
-    call_sid = _place_twilio_voice_call()
+    call_sid = _place_twilio_voice_call(
+        amount=Decimal(txn.amount),
+        customer_name=txn.customer_name,
+        merchant_id=txn.merchant_id,
+    )
     language_register, _ = dispatch_recovery(db, txn)
     write_audit(
         db,
