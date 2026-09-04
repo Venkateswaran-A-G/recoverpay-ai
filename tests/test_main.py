@@ -370,6 +370,8 @@ def test_whatsapp_pay_page_does_not_change_status(client):
     assert page.status_code == 200
     assert "Confirm" in page.text
     assert "Decline" in page.text
+    assert f"/pay/{txn_id}/confirm" in page.text
+    assert f"/pay/{txn_id}/decline" in page.text
     alias = test_client.get(f"/api/v1/recovery/pay/{txn_id}")
     assert alias.status_code == 200
     detail = test_client.get(f"/api/v1/audit-logs/{txn_id}", headers={"X-API-KEY": "demo_dashboard_key"})
@@ -502,17 +504,13 @@ def test_approve_all_pending_reviews(client):
     assert result.json()["approved"] >= 1
 
 
-def test_whatsapp_payment_link_never_uses_localhost(monkeypatch):
+def test_whatsapp_payment_link_is_recoverpay_pay_path(monkeypatch):
     monkeypatch.setenv("PUBLIC_BASE_URL", "http://127.0.0.1:8000")
     txn_id = "a5ece3b6-1f02-4200-baf9-0c1b9310c831"
     link = whatsapp_payment_link(txn_id, "https://rzp.io/l/abc123def456")
-    assert link.startswith("https://")
     assert "rzp.io" not in link
-    assert txn_id in link
+    assert "href.li" not in link
     assert f"/pay/{txn_id}" in link
-    from backend.agent import is_whatsapp_linkifiable
-
-    assert is_whatsapp_linkifiable(link) is True
 
 
 def test_whatsapp_payment_link_uses_public_recover_url(monkeypatch):

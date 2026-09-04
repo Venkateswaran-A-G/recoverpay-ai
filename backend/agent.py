@@ -696,9 +696,9 @@ def send_green_api_message(
 ) -> bool:
     """Send a WhatsApp message via Green API (https://green-api.com).
 
-    Prefers an interactive URL button so the customer gets a tappable Pay now
-    control. Falls back to sendMessage with linkPreview so public https URLs
-    render as blue hyperlinks (localhost URLs never will).
+    Prefers a plain ``sendMessage`` with the RecoverPay ``/pay/{{id}}`` URL on
+    its own line. WhatsApp URL *buttons* from unofficial APIs often fail to
+    open (or open a wrapper), so they are not used as the only tap target.
     """
     import sys
 
@@ -725,50 +725,29 @@ def send_green_api_message(
 
     chat_id = f"{clean}@c.us"
     clickable = (link_url or "").strip() or first_public_http_url(message_text)
-    if clickable and not is_whatsapp_linkifiable(clickable):
+    if clickable and (
+        not is_whatsapp_linkifiable(clickable)
+        or "/pay/" not in clickable
+        or "href.li" in clickable.lower()
+        or "rzp.io" in clickable.lower()
+    ):
         clickable = None
+    if not clickable:
+        print("[GreenAPI] No public RecoverPay /pay URL; skipping send.", file=sys.stderr)
+        return False
     base = f"https://api.green-api.com/waInstance{instance_id}"
 
     try:
         import requests as _requests  # type: ignore[import-untyped]
 
-        if clickable:
-            button_resp = _requests.post(
-                f"{base}/sendInteractiveButtons/{token}",
-                json={
-                    "chatId": chat_id,
-                    "header": "RecoverPay AI",
-                    "body": message_text,
-                    "footer": "Secure 1-click UPI",
-                    "buttons": [
-                        {
-                            "type": "url",
-                            "buttonId": "1",
-                            "buttonText": "Pay now",
-                            "url": clickable,
-                        }
-                    ],
-                },
-                timeout=10,
-            )
-            if button_resp.status_code == 200:
-                data = button_resp.json()
-                print(
-                    f"[GreenAPI] URL button sent → idMessage={data.get('idMessage', '?')} to={chat_id}",
-                    file=sys.stderr,
-                )
-                return True
-            print(
-                f"[GreenAPI] URL button unavailable ({button_resp.status_code}); falling back to text link.",
-                file=sys.stderr,
-            )
-
-        # Do not enable linkPreview: WhatsApp/Green API crawlers would GET the
-        # recover URL and mark RECOVERED before the customer taps.
+        # Plain text + link preview. GET /pay/{id} is a choice page, so a
+        # crawler cannot mark RECOVERED. URL buttons are unreliable on WA.
+        if clickable not in message_text:
+            message_text = f"{message_text.rstrip()}\n\n{clickable}"
         payload: dict[str, Any] = {
             "chatId": chat_id,
             "message": message_text,
-            "linkPreview": False,
+            "linkPreview": True,
         }
         resp = _requests.post(
             f"{base}/sendMessage/{token}",

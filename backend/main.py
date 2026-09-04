@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -461,6 +462,20 @@ def compute_metrics(db: Session) -> DashboardMetrics:
     )
 
 
+def public_request_origin(request: Request) -> str:
+    """Host the customer actually opened (Cloudflare / tunnel / localhost)."""
+    proto = (request.headers.get("x-forwarded-proto") or request.url.scheme or "https").split(",")[0].strip()
+    host = (
+        request.headers.get("x-forwarded-host")
+        or request.headers.get("host")
+        or request.url.hostname
+        or "127.0.0.1:8000"
+    ).split(",")[0].strip()
+    if not proto:
+        proto = "https"
+    return f"{proto}://{host}".rstrip("/")
+
+
 def public_app_base() -> str:
     env = os.getenv("PUBLIC_BASE_URL", "").strip().rstrip("/")
     if env and is_whatsapp_linkifiable(env):
@@ -478,26 +493,23 @@ def recovery_pay_url(txn_id: str) -> str:
 
 
 def whatsapp_payment_link(txn_id: str, rzp_link: str | None = None) -> str:
-    """Always land on RecoverPay ``/pay/{id}`` (Confirm / Decline page).
+    """Land on RecoverPay ``/pay/{id}`` (Confirm / Decline). Never rzp.io or href.li.
 
-    WhatsApp only hyperlinks public http(s) hosts. Live demo waits once for
-    the Cloudflare/loca.lt tunnel so the bubble is a real RecoverPay URL, not
-    ``href.li`` or ``rzp.io``. Confirm marks RECOVERED; Decline marks OPTED_OUT.
+    WhatsApp only hyperlinks public http(s) hosts. Live demo waits for the
+    Cloudflare/loca.lt tunnel so the bubble is a real RecoverPay URL.
     """
     recover = recovery_pay_url(txn_id)
     if is_whatsapp_linkifiable(recover):
         return recover
     if not is_test_mode():
-        deadline = time.time() + 10
+        deadline = time.time() + 20
         while time.time() < deadline:
             recover = recovery_pay_url(txn_id)
             if is_whatsapp_linkifiable(recover):
                 return recover
             time.sleep(0.5)
         recover = recovery_pay_url(txn_id)
-        if is_whatsapp_linkifiable(recover):
-            return recover
-    return f"https://href.li/?{recover}"
+    return recover
 
 
 def mark_payment_recovered(
@@ -660,6 +672,12 @@ def dispatch_recovery(
             request, diagnostic.language_register, bank_outage_note=bank_outage_note
         )
         send_green_api_message(personal_wa, rich_msg, link_url=link)
+        if not is_whatsapp_linkifiable(link):
+            print(
+                "[dispatch] WhatsApp needs a public https /pay URL. "
+                "Keep the server running until the Cloudflare tunnel is printed, then Simulate again.",
+                file=sys.stderr,
+            )
     # ─────────────────────────────────────────────────────────────────────────
 
     return diagnostic.language_register.value, diagnostic.used_fallback
@@ -975,7 +993,7 @@ async def razorpay_paid_webhook(request: Request, db: Session = Depends(get_db))
     )
 
 
-def _pay_choice_page(transaction_id: str, db: Session) -> HTMLResponse:
+def _pay_choice_page(transaction_id: str, db: Session, request: Request) -> HTMLResponse:
     """Landing page only — opening the WhatsApp link does not change status."""
     txn = db.get(Transaction, transaction_id)
     if txn is None:
@@ -989,6 +1007,7 @@ def _pay_choice_page(transaction_id: str, db: Session) -> HTMLResponse:
         transaction_id=txn.id,
         customer_name=txn.customer_name,
         amount=amount,
+        public_base=public_request_origin(request),
     )
 
 
@@ -1025,19 +1044,21 @@ def _decline_pay_link(transaction_id: str, db: Session) -> HTMLResponse:
 @app.get("/pay/{transaction_id}", include_in_schema=True)
 def recovery_payment_short_link(
     transaction_id: str,
+    request: Request,
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
     """WhatsApp tap lands here: Confirm (RECOVERED) or Decline (OPTED_OUT)."""
-    return _pay_choice_page(transaction_id, db)
+    return _pay_choice_page(transaction_id, db, request)
 
 
 @app.get("/api/v1/recovery/pay/{transaction_id}", include_in_schema=True)
 def recovery_payment_link_click(
     transaction_id: str,
+    request: Request,
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
     """Longer alias of ``GET /pay/{id}`` — choice page, no status change."""
-    return _pay_choice_page(transaction_id, db)
+    return _pay_choice_page(transaction_id, db, request)
 
 
 @app.api_route("/pay/{transaction_id}/confirm", methods=["GET", "POST"], include_in_schema=True)

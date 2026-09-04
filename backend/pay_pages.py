@@ -59,12 +59,16 @@ button, .btn {
 """
 
 
-def _shell(title: str, inner: str) -> HTMLResponse:
+def _shell(title: str, inner: str, *, public_base: str | None = None) -> HTMLResponse:
+    base_tag = ""
+    if public_base:
+        base_tag = f'<base href="{escape(public_base.rstrip("/"))}/"/>'
     html = f"""<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  {base_tag}
   <title>{escape(title)}</title>
   <style>{_CSS}</style>
 </head>
@@ -83,18 +87,21 @@ def choice_page(
     transaction_id: str,
     customer_name: str | None,
     amount: str,
+    public_base: str,
 ) -> HTMLResponse:
     name = escape((customer_name or "there").split()[0])
+    tid = escape(transaction_id)
+    origin = escape(public_base.rstrip("/"))
     inner = f"""
     <h1>Hi {name}</h1>
     <p class="amount">₹{escape(amount)}</p>
     <p class="muted">This payment did not go through. Confirm if you completed it, or decline if you do not want recovery messages.</p>
     <div class="actions">
-      <a class="btn confirm" href="/pay/{escape(transaction_id)}/confirm">Confirm</a>
-      <a class="btn decline" href="/pay/{escape(transaction_id)}/decline">Decline</a>
+      <a class="btn confirm" href="{origin}/pay/{tid}/confirm">Confirm</a>
+      <a class="btn decline" href="{origin}/pay/{tid}/decline">Decline</a>
     </div>
     """
-    return _shell("Confirm or decline payment", inner)
+    return _shell("Confirm or decline payment", inner, public_base=public_base)
 
 
 def recovered_page(*, already: bool = False) -> HTMLResponse:
